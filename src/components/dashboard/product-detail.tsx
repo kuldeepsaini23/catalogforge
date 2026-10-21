@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2, Pencil, RotateCcw, Send, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Check, Loader2, Pencil, RotateCcw, Send, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -79,6 +80,8 @@ export function ProductDetailView({ id }: { id: string }) {
   const [sendBack, setSendBack] = useState(false);
   const [note, setNote] = useState("");
   const [highlight, setHighlight] = useState<{ row: number; column: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const router = useRouter();
 
   if (error && !data) return <PageBody><p className="rounded-md bg-fail-soft px-3 py-2 text-sm text-fail">{error}</p></PageBody>;
   if (!data) return <PageBody><p className="text-sm text-slate">Loading product…</p></PageBody>;
@@ -137,6 +140,19 @@ export function ProductDetailView({ id }: { id: string }) {
     }
   };
 
+  const remove = async () => {
+    setActing("delete");
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Delete failed");
+      toast.success("Product deleted", { description: "Re-uploading the same sheet will not bring it back." });
+      router.push("/products");
+    } catch (err) {
+      toast.error((err as Error).message);
+      setActing(null);
+    }
+  };
+
   const reasons = p.reviewReason ? p.reviewReason.split("; ") : [];
   const columns = [...new Set(data.rows.flatMap((r) => Object.keys(r.raw)))];
 
@@ -159,6 +175,10 @@ export function ProductDetailView({ id }: { id: string }) {
         }
         actions={
           <>
+            <Button variant="ghost" className="text-fail hover:bg-fail-soft hover:text-fail" onClick={() => setConfirmDelete(true)} disabled={acting !== null}>
+              <Trash2 aria-hidden />
+              Delete
+            </Button>
             {!editing && (
               <Button variant="outline" onClick={() => setDraft(toDraft(p))} disabled={p.status === "pending"}>
                 <Pencil aria-hidden />
@@ -413,6 +433,24 @@ export function ProductDetailView({ id }: { id: string }) {
           </Button>
         </FloatingBar>
       )}
+
+      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this product?</DialogTitle>
+            <DialogDescription>
+              It is removed from the catalog and the storefront. If you upload the same supplier sheet again, its rows are skipped and marked Failed with the reason “deleted by the merchant”.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={remove} disabled={acting === "delete"}>
+              {acting === "delete" && <Loader2 className="animate-spin" aria-hidden />}
+              Delete product
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={sendBack} onOpenChange={setSendBack}>
         <DialogContent>

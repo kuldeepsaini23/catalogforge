@@ -57,7 +57,7 @@ export async function handleBuild(data: JobData[typeof QUEUES.build]): Promise<v
   }
 
   const rows = await db.select().from(schema.products).where(inArray(schema.products.id, data.productIds));
-  const todo = rows.filter((p) => p.status === "pending" && p.input);
+  const todo = rows.filter((p) => p.status === "pending" && p.input && !p.deletedAt);
   const alreadyBuilt = rows.filter((p) => p.status !== "pending").map((p) => p.id);
   if (alreadyBuilt.length) await syncRowStatuses(db, importId, alreadyBuilt);
   if (!todo.length) {

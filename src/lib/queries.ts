@@ -90,7 +90,7 @@ export interface ProductFilters {
 
 export async function listProducts(f: ProductFilters) {
   const db = getDb();
-  const conds: SQL[] = [];
+  const conds: SQL[] = [sql`${schema.products.deletedAt} IS NULL`];
   if (f.q) {
     const like = `%${f.q.replace(/[%_]/g, "\\$&")}%`;
     conds.push(

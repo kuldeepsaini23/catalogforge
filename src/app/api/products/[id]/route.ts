@@ -5,7 +5,7 @@ import { handleError } from "@/lib/api";
 import { sanitizeOutputHtml } from "@/lib/cleaning/html";
 import { sha256 } from "@/lib/cleaning/text";
 import { getDb, schema } from "@/lib/db/client";
-import { refreshPublished } from "@/lib/publish";
+import { refreshPublished, unpublishProducts } from "@/lib/publish";
 import { productDetail } from "@/lib/queries";
 import { QUEUES, send } from "@/lib/queue";
 import { revalidateStorefront } from "@/lib/revalidate";
@@ -33,6 +33,26 @@ const editSchema = z
     attributes: z.record(z.string(), z.string().max(300)),
   })
   .partial();
+
+/**
+ * Delete: unpublishes and soft-deletes. The stable key stays as a tombstone, so re-uploading the
+ * same supplier sheet does not bring the product back (its rows end as Failed with a reason).
+ */
+export async function DELETE(_req: Request, ctx: RouteContext<"/api/products/[id]">) {
+  try {
+    const { id } = await ctx.params;
+    if (!z.uuid().safeParse(id).success) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    const db = getDb();
+    const product = await db.query.products.findFirst({ where: eq(schema.products.id, id) });
+    if (!product || product.deletedAt) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    const removed = await unpublishProducts([id]);
+    await db.update(schema.products).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(schema.products.id, id));
+    revalidateStorefront(removed, product.category ? [product.category] : []);
+    return NextResponse.json({ deleted: true });
+  } catch (err) {
+    return handleError(err);
+  }
+}
 
 /** Merchant edit. Edited fields are remembered so a later AI rebuild never overwrites them. */
 export async function PATCH(req: Request, ctx: RouteContext<"/api/products/[id]">) {

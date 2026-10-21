@@ -140,6 +140,28 @@ describe("full import with the mock AI", () => {
     expect(v.priceCents).toBe(9995);
   });
 
+  it("a deleted product stays deleted on re-upload; its rows fail with a reason and counts still add up", async () => {
+    const db = getDb();
+    const [victim] = await db.select().from(schema.products).where(sql`${schema.products.status} <> 'failed'`).limit(1);
+    await db.update(schema.products).set({ deletedAt: new Date() }).where(eq(schema.products.id, victim.id));
+    const callsBefore = await buildCalls();
+    const res = await createImport({ name: "sample-200-again.csv", bytes: enc.encode(`${csv}\n`) }, [{ name: "photos.zip", bytes: zip }]);
+    const imp = await waitForImport(res.id);
+    expect(imp.status).toBe("completed");
+    const r = await reconcile(res.id);
+    expect(r.ok).toBe(true);
+    const rows = await db.select().from(schema.sourceRows).where(and(eq(schema.sourceRows.importId, res.id), eq(schema.sourceRows.productId, victim.id)));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.status).toBe("failed");
+      expect(row.statusReason).toMatch(/deleted by the merchant/);
+    }
+    const [after] = await db.select().from(schema.products).where(eq(schema.products.id, victim.id));
+    expect(after.deletedAt).not.toBeNull();
+    // Only the product whose price the previous test changed is rebuilt (its row is back to the original).
+    expect(await buildCalls()).toBe(callsBefore + 1);
+  });
+
   it("parses the XLSX version of the sheet identically", () => {
     const xlsx = readFileSync("fixtures/out/sample-200.xlsx", { flag: "r" });
     expect(xlsx.byteLength).toBeGreaterThan(0);

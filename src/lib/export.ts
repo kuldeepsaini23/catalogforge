@@ -1,4 +1,4 @@
-import { and, asc, gt, inArray, type SQL } from "drizzle-orm";
+import { and, asc, gt, inArray, isNull, type SQL } from "drizzle-orm";
 import type { CatalogProduct } from "@/lib/ai/schema";
 import { getDb, schema } from "@/lib/db/client";
 
@@ -17,7 +17,7 @@ export async function* exportProducts(scope: ExportScope, withTranslations: bool
     scope === "approved" ? ["approved"] : scope === "reviewed" ? ["approved", "done"] : ["approved", "done", "needs_review"];
   let cursor: string | null = null;
   for (;;) {
-    const conds: SQL[] = [inArray(schema.products.status, statuses)];
+    const conds: SQL[] = [inArray(schema.products.status, statuses), isNull(schema.products.deletedAt)];
     if (cursor) conds.push(gt(schema.products.id, cursor));
     const page = await db.select().from(schema.products).where(and(...conds)).orderBy(asc(schema.products.id)).limit(PAGE);
     if (!page.length) return;

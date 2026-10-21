@@ -10,7 +10,7 @@ export async function getMetrics() {
   const strong = env().AI_MODEL_STRONG;
 
   const [statusRes, rowRes, callGroups, timeRes, speedRes, slowRes, coverageRes, claimRes, outcomeRes, importRes] = await Promise.all([
-    db.execute<{ status: string; n: string }>(sql`SELECT status, count(*) AS n FROM products GROUP BY status`),
+    db.execute<{ status: string; n: string }>(sql`SELECT status, count(*) AS n FROM products WHERE deleted_at IS NULL GROUP BY status`),
     db.execute<{ status: string; n: string }>(sql`SELECT status, count(*) AS n FROM source_rows GROUP BY status`),
     db.execute<{ model: string; mode: string; kind: string; calls: string; products: string; vision: string; input: string; output: string; cache_read: string; cache_write: string; cost: string; baseline: string }>(sql`
       SELECT model, mode, kind, count(*) AS calls, sum(product_count) AS products, count(*) FILTER (WHERE vision) AS vision,

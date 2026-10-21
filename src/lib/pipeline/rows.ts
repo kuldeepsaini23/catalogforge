@@ -9,12 +9,16 @@ export async function syncRowStatuses(db: Db | Parameters<Parameters<Db["transac
   if (!productIds.length) return;
   await db.execute(sql`
     UPDATE source_rows r SET
-      status = CASE p.status
+      status = CASE
+        WHEN p.deleted_at IS NOT NULL THEN 'failed'::row_status
+        ELSE CASE p.status
         WHEN 'needs_review' THEN 'needs_review'::row_status
         WHEN 'failed' THEN 'failed'::row_status
-        ELSE 'done'::row_status END,
-      status_reason = CASE WHEN p.status IN ('needs_review', 'failed')
-        THEN COALESCE(p.review_reason, 'Needs review') ELSE NULL END,
+        ELSE 'done'::row_status END END,
+      status_reason = CASE
+        WHEN p.deleted_at IS NOT NULL THEN 'Product was deleted by the merchant, so this row was not imported'
+        WHEN p.status IN ('needs_review', 'failed') THEN COALESCE(p.review_reason, 'Needs review')
+        ELSE NULL END,
       updated_at = now()
     FROM products p
     WHERE r.product_id = p.id

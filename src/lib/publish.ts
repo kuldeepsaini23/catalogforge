@@ -54,7 +54,7 @@ export interface PublishResult {
 export async function approveProducts(productIds: string[]): Promise<PublishResult> {
   const db = getDb();
   const candidates = await db
-    .select({ id: schema.products.id, status: schema.products.status, title: schema.products.title })
+    .select({ id: schema.products.id, status: schema.products.status, title: schema.products.title, deletedAt: schema.products.deletedAt })
     .from(schema.products)
     .where(inArray(schema.products.id, productIds));
   const variants = await db.select({ productId: schema.variants.productId, priceCents: schema.variants.priceCents }).from(schema.variants).where(inArray(schema.variants.productId, productIds));
@@ -62,7 +62,8 @@ export async function approveProducts(productIds: string[]): Promise<PublishResu
   const ok: string[] = [];
   for (const c of candidates) {
     const vs = variants.filter((v) => v.productId === c.id);
-    if (c.status === "pending" || c.status === "failed" || !c.title) skipped.push({ id: c.id, reason: `cannot approve a ${c.status} product` });
+    if (c.deletedAt) skipped.push({ id: c.id, reason: "deleted" });
+    else if (c.status === "pending" || c.status === "failed" || !c.title) skipped.push({ id: c.id, reason: `cannot approve a ${c.status} product` });
     else if (!vs.length) skipped.push({ id: c.id, reason: "no variants" });
     else if (vs.some((v) => v.priceCents === null)) skipped.push({ id: c.id, reason: "a variant has no price" });
     else ok.push(c.id);

@@ -128,6 +128,8 @@ export const products = pgTable(
     minConfidence: integer("min_confidence"),
     buildAttempts: integer("build_attempts").notNull().default(0),
     lastError: text("last_error"),
+    /** Soft delete: the stable key stays as a tombstone so a re-upload does not resurrect it. */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     builtAt: timestamp("built_at", { withTimezone: true }),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     englishHash: text("english_hash"),

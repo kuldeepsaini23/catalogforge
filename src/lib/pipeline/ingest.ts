@@ -154,14 +154,15 @@ export async function handleIngest(importId: string): Promise<void> {
           corrections: sql`excluded.corrections`,
           sourceRows: sql`excluded.source_rows`,
           // Changed content → rebuild; unchanged → keep status (incl. approved) and AI result.
-          status: sql`CASE WHEN ${schema.products.builtHash} = excluded.content_hash THEN ${schema.products.status} ELSE 'pending'::product_status END`,
+          // Deleted products stay deleted (tombstone): their rows end as Failed with a reason.
+          status: sql`CASE WHEN ${schema.products.deletedAt} IS NOT NULL OR ${schema.products.builtHash} = excluded.content_hash THEN ${schema.products.status} ELSE 'pending'::product_status END`,
           updatedAt: sql`now()`,
         },
       })
-      .returning({ id: schema.products.id, key: schema.products.stableKey, status: schema.products.status, builtHash: schema.products.builtHash, contentHash: schema.products.contentHash });
+      .returning({ id: schema.products.id, key: schema.products.stableKey, status: schema.products.status, builtHash: schema.products.builtHash, contentHash: schema.products.contentHash, deletedAt: schema.products.deletedAt });
     for (const r of res) {
       productIdByKey.set(r.key, r.id);
-      if (r.status === "pending") pendingIds.push(r.id);
+      if (r.status === "pending" && !r.deletedAt) pendingIds.push(r.id);
       else unchangedIds.push(r.id);
     }
   }
