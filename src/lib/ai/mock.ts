@@ -149,7 +149,8 @@ export function mockProduct(input: ProductInput): AiWireProduct {
     { field: "tags", score: 85 },
     ...attributes.map((a) => ({
       field: `attributes.${a.name}`,
-      score: a.name === "care" && facts.care_language && facts.care_language !== "en" ? 64 : 90,
+      // ~3% of care instructions are judged ambiguous (exercises the low-confidence review path).
+      score: a.name === "care" && unit(`care:${input.key}`) < 0.03 ? 64 : 90,
     })),
   ];
   const conflict = input.issues.find((i) => i.code === "conflict");
