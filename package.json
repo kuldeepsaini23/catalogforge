@@ -18,7 +18,8 @@
     "eval": "tsx scripts/eval.ts",
     "check": "bun run typecheck && bun run lint && bun run test",
     "scale-run": "tsx scripts/scale-run.ts",
-    "load": "k6 run load/storefront.js"
+    "load": "k6 run load/storefront.js",
+    "up": "tsx scripts/up.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",
