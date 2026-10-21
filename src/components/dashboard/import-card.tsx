@@ -10,7 +10,7 @@ import { duration, int, relativeTime, usd } from "@/lib/format";
 import { RowStrip } from "./row-strip";
 import { RowsTable } from "./rows-table";
 import { StatusBadge } from "./status";
-import { postJson, useJson } from "./use-json";
+import { postJson, useEventStream, useJson } from "./use-json";
 
 type Serialized<T> = { [K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K] };
 export type ImportRow = Serialized<ImportSummary>;
@@ -43,13 +43,17 @@ function countdown(until: string | null, now: number): string | null {
 
 export function ImportCard({ imp, onChanged }: { imp: ImportRow; onChanged: () => void }) {
   const active = ACTIVE.has(imp.status);
-  const { data } = useJson<Detail>(`/api/imports/${imp.id}`, active ? 1500 : false);
+  // Live imports stream progress over SSE; finished ones are fetched once.
+  const live = useEventStream<Detail & { import: { counts: { pending: number; done: number; needsReview: number; failed: number } } }>(active ? `/api/imports/${imp.id}/events` : null);
+  const { data: once } = useJson<Detail>(active ? null : `/api/imports/${imp.id}`);
+  const data = live ?? once;
+  const counts = live?.import.counts ?? imp.counts;
   const [showRows, setShowRows] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const now = useNow(active);
   const resume = countdown(imp.status === "paused" ? imp.pausedUntil : null, now);
   const total = imp.totalRows ?? 0;
-  const terminal = imp.counts.done + imp.counts.needsReview + imp.counts.failed;
+  const terminal = counts.done + counts.needsReview + counts.failed;
   const elapsed = imp.startedAt ? (imp.finishedAt ? new Date(imp.finishedAt).getTime() : now) - new Date(imp.startedAt).getTime() : null;
 
   const retry = async () => {
@@ -110,10 +114,10 @@ export function ImportCard({ imp, onChanged }: { imp: ImportRow; onChanged: () =
         <div className="px-4">
           <RowStrip strip={data?.strip ?? ""} />
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs tabular-nums">
-            <Legend colour="bg-ok" label="Done" value={imp.counts.done} />
-            <Legend colour="bg-review" label="Needs review" value={imp.counts.needsReview} />
-            <Legend colour="bg-fail" label="Failed" value={imp.counts.failed} />
-            <Legend colour="bg-pending" label="In progress" value={imp.counts.pending + Math.max(0, total - terminal - imp.counts.pending)} />
+            <Legend colour="bg-ok" label="Done" value={counts.done} />
+            <Legend colour="bg-review" label="Needs review" value={counts.needsReview} />
+            <Legend colour="bg-fail" label="Failed" value={counts.failed} />
+            <Legend colour="bg-pending" label="In progress" value={Math.max(0, total - terminal)} />
             <span className="ml-auto text-slate">
               {data?.reconciliation.ok ? `All ${int(total)} rows accounted for` : `${int(terminal)} of ${int(total)} rows finished`}
             </span>

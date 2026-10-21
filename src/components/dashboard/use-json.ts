@@ -52,3 +52,19 @@ export async function postJson<T>(url: string, body: unknown, method = "POST"): 
   if (!res.ok) throw new Error((json as { error?: string }).error ?? `Request failed (${res.status})`);
   return json as T;
 }
+
+/** Subscribes to a Server-Sent Events stream of JSON messages; reconnects are handled by EventSource. */
+export function useEventStream<T>(url: string | null) {
+  const [data, setData] = useState<T | null>(null);
+  useEffect(() => {
+    if (!url) return;
+    const es = new EventSource(url);
+    es.onmessage = (e) => setData(JSON.parse(e.data) as T);
+    // The server closes the stream when the import finishes; don't reconnect after that.
+    es.onerror = () => {
+      if (es.readyState === EventSource.CLOSED || es.readyState === EventSource.CONNECTING) es.close();
+    };
+    return () => es.close();
+  }, [url]);
+  return data;
+}
