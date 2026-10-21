@@ -41,7 +41,7 @@ cp .env.example .env          # works as-is: AI_PROVIDER=mock needs no API key
 bun run up                    # migrates, generates sample sheets, starts web + worker
 ```
 
-Open **http://localhost:3000**. Sample files are in `fixtures/out/` (`sample-200.csv`/`.xlsx`, `supplier-5000`, `supplier-10000`, each with a photo ZIP).
+Open **http://localhost:3000**. Sample sheets and photo ZIPs to upload are in [`samples/`](samples/) (200 rows and 10,000 rows); `bun run fixtures` regenerates them and a 5,000-row set in `fixtures/out/`.
 
 **Using Claude instead of the mock:** set `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY=…` in `.env` and restart. To go through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway/sdks-and-apis/anthropic-messages-api) instead, set `AI_GATEWAY_API_KEY=…`; the same Anthropic SDK is pointed at the gateway and model ids are mapped (`claude-haiku-4-5` → `anthropic/claude-haiku-4.5`). Batches are split per model and capped at 1,000 requests (a gateway rule); if the gateway refuses batches for the key, those products are built with normal calls instead. `bun run real-run` (with `REAL_DATABASE_URL` pointing at a database it may wipe) imports the labelled 200-row sample with real models and scores it; it costs about $0.50.
 
