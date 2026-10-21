@@ -17,6 +17,7 @@
     "fixtures": "tsx fixtures/generate.ts",
     "eval": "tsx scripts/eval.ts",
     "check": "bun run typecheck && bun run lint && bun run test",
+    "real-run": "tsx --env-file=.env scripts/real-run.mts",
     "scale-run": "tsx scripts/scale-run.ts",
     "load": "k6 run load/storefront.js",
     "up": "tsx scripts/up.ts",

@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { withRetry, RateLimitedError, InvalidOutputError } from "@/lib/ai/errors";
+import { withRetry, RateLimitedError, InvalidOutputError, TRUNCATED } from "@/lib/ai/errors";
 import { getProvider } from "@/lib/ai/provider";
 import { translationResponseSchema } from "@/lib/ai/schema";
 import { sha256 } from "@/lib/cleaning/text";
@@ -118,7 +118,7 @@ export async function handleTranslate(data: JobData[typeof QUEUES.translate]): P
 
     for (const group of chunk(misses)) {
       try {
-        await translateGroup(provider, model, locale, group, data.importId);
+        await translateSplitting(provider, model, locale, group, data.importId);
       } catch (err) {
         if (err instanceof RateLimitedError) {
           if (data.importId) {
@@ -136,6 +136,32 @@ export async function handleTranslate(data: JobData[typeof QUEUES.translate]): P
   await refreshPublished(products.filter((p) => p.status === "approved").map((p) => p.id));
 }
 
+/** The answer hit max_tokens: retrying the same request can't help, only a smaller one can. */
+class OutputTooLong extends Error {}
+
+/** A group whose output doesn't fit max_tokens is translated in halves. */
+async function translateSplitting(
+  provider: Awaited<ReturnType<typeof getProvider>>,
+  model: string,
+  locale: TargetLocale,
+  group: Item[],
+  importId: string | null,
+): Promise<void> {
+  try {
+    await translateGroup(provider, model, locale, group, importId);
+  } catch (err) {
+    if (!(err instanceof OutputTooLong)) throw err;
+    if (group.length === 1) {
+      // Keep English as the visible fallback and flag it, like any other failed translation.
+      await saveTranslation(group[0], locale, group[0].text, "failed", "Text too long to translate in one call");
+      return;
+    }
+    const mid = Math.ceil(group.length / 2);
+    await translateSplitting(provider, model, locale, group.slice(0, mid), importId);
+    await translateSplitting(provider, model, locale, group.slice(mid), importId);
+  }
+}
+
 async function translateGroup(
   provider: Awaited<ReturnType<typeof getProvider>>,
   model: string,
@@ -149,13 +175,24 @@ async function translateGroup(
     const keep = [...new Set(remaining.flatMap((i) => i.keep))];
     const result = await withRetry(
       async () => {
-        const r = await provider.translate({ model, locale, items: remaining.map((i) => ({ id: i.id, text: i.text })), keep, repairHints: hints });
+        const productCount = new Set(remaining.map((i) => i.productId)).size;
+        let r;
+        try {
+          r = await provider.translate({ model, locale, items: remaining.map((i) => ({ id: i.id, text: i.text })), keep, repairHints: hints });
+        } catch (err) {
+          // A truncated or unparseable answer was still billed: record it.
+          if (err instanceof InvalidOutputError && err.usage) {
+            await logAiCall(importId, "translate", model, "sync", { usage: err.usage, latencyMs: 0, outcome: "invalid_output", error: err.message, productCount });
+            if (err.message === TRUNCATED) throw new OutputTooLong(err.message);
+          }
+          throw err;
+        }
         const parsed = translationResponseSchema.safeParse(r.output);
         await logAiCall(importId, "translate", model, "sync", {
           usage: r.usage,
           latencyMs: r.latencyMs,
           outcome: parsed.success ? "ok" : "invalid_output",
-          productCount: new Set(remaining.map((i) => i.productId)).size,
+          productCount,
         });
         if (!parsed.success) throw new InvalidOutputError("Translation output failed schema validation");
         return parsed.data;

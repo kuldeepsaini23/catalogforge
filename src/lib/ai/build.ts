@@ -48,10 +48,12 @@ export async function buildChunk(
       try {
         result = await provider.build({ ...req, repairHint });
       } catch (err) {
+        const invalid = err instanceof InvalidOutputError;
+        if (invalid) repairHint = err.message;
         await opts.onAttempt?.({
-          usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+          usage: (invalid && err.usage) || { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
           latencyMs: Date.now() - started,
-          outcome: (err as Error).name === "RateLimitedError" ? "rate_limited" : "error",
+          outcome: invalid ? "invalid_output" : (err as Error).name === "RateLimitedError" ? "rate_limited" : "error",
           error: (err as Error).message,
           productCount: keys.length,
         });

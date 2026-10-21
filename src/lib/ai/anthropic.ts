@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "@/lib/env";
 import { resolveStoragePath } from "@/lib/storage";
-import { FatalAiError, InvalidOutputError, RateLimitedError, TransientAiError } from "./errors";
+import { FatalAiError, InvalidOutputError, RateLimitedError, TRUNCATED, TransientAiError } from "./errors";
 import { BUILD_SYSTEM_PROMPT, TRANSLATE_SYSTEM_PROMPT, buildUserPrompt, translateUserPrompt } from "./prompts";
 import type { AiProvider, BatchItem, BatchResult, BuildRequest, CallResult, TranslateRequest } from "./provider";
 import { aiBuildResponseSchema, toApiJsonSchema, translationResponseSchema } from "./schema";
@@ -55,9 +55,15 @@ export function classifyError(err: unknown): Error {
   return err instanceof Error ? err : new Error(String(err));
 }
 
+function invalid(message: Anthropic.Message, text: string): InvalidOutputError {
+  const err = new InvalidOutputError(text);
+  err.usage = usageOf(message.usage);
+  return err;
+}
+
 function extractJson(message: Anthropic.Message, toolName: string): unknown {
-  if (message.stop_reason === "max_tokens") throw new InvalidOutputError("Output truncated at max_tokens");
-  if (message.stop_reason === "refusal") throw new InvalidOutputError("Model refused the request");
+  if (message.stop_reason === "max_tokens") throw invalid(message, TRUNCATED);
+  if (message.stop_reason === "refusal") throw invalid(message, "Model refused the request");
   for (const block of message.content) {
     if (block.type === "tool_use" && block.name === toolName) return block.input;
   }
@@ -65,7 +71,7 @@ function extractJson(message: Anthropic.Message, toolName: string): unknown {
   try {
     return JSON.parse(text);
   } catch {
-    throw new InvalidOutputError("Response was not valid JSON");
+    throw invalid(message, "Response was not valid JSON");
   }
 }
 
@@ -143,7 +149,8 @@ export class AnthropicProvider implements AiProvider {
       [{ type: "text", text: translateUserPrompt(req.locale, req.items, req.keep, req.repairHints) }],
       TRANSLATE_TOOL,
       TRANSLATE_SCHEMA,
-      Math.min(16_000, 500 + req.items.reduce((n, i) => n + Math.ceil(i.text.length / 2), 0)),
+      // ~1 output token per source character: DE/FR run longer than English, and JSON escapes the HTML.
+      Math.min(16_000, 1_000 + req.items.reduce((n, i) => n + i.text.length, 0)),
       "Submit one translation per input item.",
     );
     const started = Date.now();

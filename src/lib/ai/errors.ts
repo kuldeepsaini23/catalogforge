@@ -1,3 +1,5 @@
+import type { Usage } from "./types";
+
 /** Provider hit a rate limit: the import pauses until `retryAfterMs` has passed. */
 export class RateLimitedError extends Error {
   constructor(public readonly retryAfterMs: number, message = "Rate limited") {
@@ -14,8 +16,12 @@ export class TransientAiError extends Error {
   }
 }
 
+export const TRUNCATED = "Output truncated at max_tokens";
+
 /** The model answered but the output failed JSON/zod validation: retry (with a repair hint). */
 export class InvalidOutputError extends Error {
+  /** Tokens the failed call still used (and was billed for), when the provider reported them. */
+  usage?: Usage;
   constructor(message: string, public readonly partial?: unknown) {
     super(message);
     this.name = "InvalidOutputError";
