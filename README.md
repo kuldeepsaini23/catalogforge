@@ -2,6 +2,8 @@
 
 **Drop in a messy supplier sheet and a folder of photos; get a clean, store-ready catalog in English, German and French, reviewed, published to a storefront and exported.**
 
+**Live demo:** [catalogforge-demo.vercel.app](https://catalogforge-demo.vercel.app) (dashboard password on request; the [storefront](https://catalogforge-demo.vercel.app/store/DE) is public). It runs on Vercel with Neon Postgres and real Claude models, capped at $5 of AI spend a day.
+
 CatalogForge cleans supplier data before any AI sees it, asks the model only for what needs judgment, verifies every claim the model makes against the exact cell it cites, and runs every step in a durable queue that survives crashes, rate limits and 10,000-row sheets without slowing the storefront.
 
 | Imports: live per-row status strip | Products: filters, confidence, bulk approve |
