@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { reconcile } from "@/lib/pipeline/finalize";
 import { importDetail, rowStrip } from "@/lib/queries";
+import { kickWorker } from "@/lib/serverless-worker";
 
 const ACTIVE = new Set(["queued", "parsing", "building", "paused"]);
 const encoder = new TextEncoder();
@@ -28,6 +29,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/imports/[id]/eve
             return;
           }
           const [strip, reconciliation] = await Promise.all([rowStrip(id), reconcile(id)]);
+          void kickWorker(); // throttled; keeps a drain running while someone watches (Vercel only)
           const payload = JSON.stringify({ import: imp, strip, reconciliation });
           // Only send when something changed; a comment line keeps proxies from timing out.
           controller.enqueue(encoder.encode(payload === lastPayload ? ": keep-alive\n\n" : `data: ${payload}\n\n`));

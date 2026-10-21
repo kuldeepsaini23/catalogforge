@@ -28,8 +28,8 @@ function wrap<Q extends keyof JobData>(name: Q, fn: (data: JobData[Q]) => Promis
   };
 }
 
-export async function startWorker(): Promise<() => Promise<void>> {
-  await runMigrations();
+export async function startWorker(opts: { migrate?: boolean; closeDbOnStop?: boolean } = {}): Promise<() => Promise<void>> {
+  if (opts.migrate !== false) await runMigrations();
   await ensureQueues();
   const boss = await getBoss();
   const concurrency = env().WORKER_CONCURRENCY;
@@ -54,7 +54,7 @@ export async function startWorker(): Promise<() => Promise<void>> {
   return async () => {
     clearInterval(sweepTimer);
     await stopBoss();
-    await closeDb();
+    if (opts.closeDbOnStop !== false) await closeDb();
   };
 }
 

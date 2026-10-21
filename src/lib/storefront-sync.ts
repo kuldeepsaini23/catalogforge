@@ -29,7 +29,8 @@ function apply(change: StorefrontChange): void {
 function listen(): Promise<void> {
   if (!listening) {
     listening = (async () => {
-      const client = new Client({ connectionString: env().DATABASE_URL });
+      // LISTEN needs a direct connection; through a transaction pooler (Neon's pooled URL) it never fires.
+      const client = new Client({ connectionString: process.env.DATABASE_URL_UNPOOLED || env().DATABASE_URL });
       client.on("notification", (msg) => {
         try {
           apply(JSON.parse(msg.payload ?? "{}") as StorefrontChange);

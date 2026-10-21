@@ -7,6 +7,7 @@ import { requeueProducts } from "@/lib/pipeline/build";
 import { approveProducts, unpublishProducts } from "@/lib/publish";
 import { revalidateStorefront } from "@/lib/revalidate";
 import { warmStorefront } from "@/lib/storefront-warm";
+import { kickWorker } from "@/lib/serverless-worker";
 
 const ids = z.array(z.uuid()).min(1).max(1000);
 const bodySchema = z.discriminatedUnion("action", [
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
       .where(inArray(schema.products.id, body.ids));
     const removed = await unpublishProducts(body.ids);
     revalidateStorefront(removed, rows.map((r) => r.category ?? "").filter(Boolean));
+    after(() => kickWorker());
     const n = await requeueProducts(
       body.ids,
       body.action === "send_back" ? body.note : undefined,

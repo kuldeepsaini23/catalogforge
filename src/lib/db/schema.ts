@@ -295,3 +295,13 @@ export const storefrontProducts = pgTable(
   },
   (t) => [uniqueIndex("storefront_product_uq").on(t.productId), index("storefront_category_idx").on(t.category, t.handle)],
 );
+
+/**
+ * Serverless worker lease (Vercel): at most one /api/worker drain runs at a time. A drain holds
+ * the row until `until`, renewing it while it works; a crashed drain's lease simply expires.
+ */
+export const workerLease = pgTable("worker_lease", {
+  id: integer("id").primaryKey(),
+  until: timestamp("until", { withTimezone: true }).notNull(),
+  holder: text("holder"),
+});

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { FileSpreadsheet, ImageIcon, Loader2, X } from "lucide-react";
+import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,23 @@ import { cn } from "@/lib/utils";
 const SHEET = /\.(csv|tsv|txt|xlsx|xls)$/i;
 const PHOTO = /\.(jpe?g|png|webp|gif|avif|zip)$/i;
 const MAX_SHEET = 25 * 1024 * 1024;
+// On Vercel, function requests are capped at 4.5 MB: files go straight to Blob storage instead.
+const DIRECT_UPLOAD = Boolean(process.env.NEXT_PUBLIC_VERCEL_ENV);
+
+async function startImport(sheet: File, photos: File[]): Promise<Response> {
+  if (!DIRECT_UPLOAD) {
+    const form = new FormData();
+    form.append("sheet", sheet);
+    for (const p of photos) form.append("photos", p);
+    return fetch("/api/imports", { method: "POST", body: form });
+  }
+  const send = async (f: File) => {
+    const blob = await upload(`uploads/${f.name}`, f, { access: "private", handleUploadUrl: "/api/uploads", multipart: f.size > 20 * 1024 * 1024 });
+    return { pathname: blob.pathname, name: f.name };
+  };
+  const [s, ...ps] = await Promise.all([send(sheet), ...photos.map(send)]);
+  return fetch("/api/imports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sheet: s, photos: ps }) });
+}
 
 function sizeLabel(bytes: number): string {
   return bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
@@ -43,11 +61,8 @@ export function UploadPanel({ onUploaded }: { onUploaded: (id: string) => void }
     }
     setBusy(true);
     setError(null);
-    const form = new FormData();
-    form.append("sheet", sheet);
-    for (const p of photos) form.append("photos", p);
     try {
-      const res = await fetch("/api/imports", { method: "POST", body: form });
+      const res = await startImport(sheet, photos);
       const body = (await res.json().catch(() => ({}))) as { id?: string; deduplicated?: boolean; error?: string };
       if (!res.ok || !body.id) throw new Error(body.error ?? `Upload failed (${res.status})`);
       toast.success(body.deduplicated ? "This file is already being imported" : "Import started", { description: sheet.name });

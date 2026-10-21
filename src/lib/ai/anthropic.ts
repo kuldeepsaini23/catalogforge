@@ -1,7 +1,6 @@
-import { readFile } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "@/lib/env";
-import { resolveStoragePath } from "@/lib/storage";
+import { readStoredFile } from "@/lib/storage";
 import { FatalAiError, InvalidOutputError, RateLimitedError, TRUNCATED, TransientAiError } from "./errors";
 import { BUILD_SYSTEM_PROMPT, TRANSLATE_SYSTEM_PROMPT, buildUserPrompt, translateUserPrompt } from "./prompts";
 import type { AiProvider, BatchItem, BatchResult, BuildRequest, CallResult, TranslateRequest } from "./provider";
@@ -91,12 +90,12 @@ export class AnthropicProvider implements AiProvider {
       for (const p of req.products) {
         for (const photo of p.photos.slice(0, MAX_PHOTOS_PER_PRODUCT)) {
           if (!IMAGE_TYPES.has(photo.mediaType)) continue;
-          const data = await readFile(resolveStoragePath(photo.path));
+          const data = await readStoredFile(photo.path);
           if (data.byteLength > MAX_IMAGE_BYTES) continue;
           content.push({ type: "text", text: `Photo for product key ${p.key} (${photo.fileName}):` });
           content.push({
             type: "image",
-            source: { type: "base64", media_type: photo.mediaType as "image/jpeg", data: data.toString("base64") },
+            source: { type: "base64", media_type: photo.mediaType as "image/jpeg", data: Buffer.from(data).toString("base64") },
           });
         }
       }

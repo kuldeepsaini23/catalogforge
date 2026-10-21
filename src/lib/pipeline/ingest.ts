@@ -1,5 +1,4 @@
 import type { RouteOverride } from "./build";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { unzipSync } from "fflate";
@@ -10,7 +9,7 @@ import { getDb, schema } from "@/lib/db/client";
 import { env } from "@/lib/env";
 import { send, QUEUES } from "@/lib/queue";
 import { parseSheet, SheetError } from "@/lib/sheet";
-import { resolveStoragePath, safeFileName, saveFile, sha256Bytes } from "@/lib/storage";
+import { readStoredFile, safeFileName, saveFile, sha256Bytes, usesBlobStorage, zipEntryRef } from "@/lib/storage";
 import type { ImportStats } from "@/lib/db/schema";
 import { toProductInput, type InputPhoto } from "./input";
 import { syncRowStatuses } from "./rows";
@@ -29,9 +28,10 @@ function mediaTypeOf(name: string): string {
 async function ingestPhotos(importId: string, photoPaths: string[]): Promise<void> {
   const db = getDb();
   const records: Array<typeof schema.photos.$inferInsert> = [];
-  const add = async (fileName: string, data: Uint8Array) => {
+  // `ref` points at bytes already stored (Blob storage: the upload itself or an entry inside its ZIP).
+  const add = async (fileName: string, data: Uint8Array, ref?: string) => {
     const safe = safeFileName(fileName);
-    const rel = await saveFile(path.join("imports", importId, "photos", safe), data);
+    const rel = ref ?? (await saveFile(path.join("imports", importId, "photos", safe), data));
     records.push({
       importId,
       fileName: safe,
@@ -44,7 +44,7 @@ async function ingestPhotos(importId: string, photoPaths: string[]): Promise<voi
     });
   };
   for (const p of photoPaths) {
-    const data = new Uint8Array(await readFile(resolveStoragePath(p)));
+    const data = await readStoredFile(p);
     if (/\.zip$/i.test(p)) {
       // Inflate one entry at a time so memory stays at one photo, not the whole archive.
       const names: string[] = [];
@@ -57,10 +57,10 @@ async function ingestPhotos(importId: string, photoPaths: string[]): Promise<voi
       if (names.length > MAX_PHOTOS) throw new SheetError(`${names.length} photos uploaded; the limit is ${MAX_PHOTOS}`);
       for (const name of names) {
         const entry = unzipSync(data, { filter: (f) => f.name === name })[name];
-        if (entry) await add(name, entry);
+        if (entry) await add(name, entry, usesBlobStorage() ? zipEntryRef(p, name) : undefined);
       }
     } else {
-      await add(path.basename(p), data);
+      await add(path.basename(p), data, usesBlobStorage() ? p : undefined);
     }
   }
   if (records.length > MAX_PHOTOS) throw new SheetError(`${records.length} photos uploaded; the limit is ${MAX_PHOTOS}`);
@@ -84,7 +84,7 @@ export async function handleIngest(importId: string): Promise<void> {
 
   let parsed;
   try {
-    parsed = parseSheet(new Uint8Array(await readFile(resolveStoragePath(imp.sheetPath))), imp.fileName);
+    parsed = parseSheet(await readStoredFile(imp.sheetPath), imp.fileName);
     await ingestPhotos(importId, imp.photoPaths);
   } catch (err) {
     if (err instanceof SheetError) {

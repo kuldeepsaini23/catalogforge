@@ -1,9 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { sanitizeOutputHtml, escapeHtml } from "@/lib/cleaning/html";
 import { sha256, titleCase, tokenize } from "@/lib/cleaning/text";
 import { env } from "@/lib/env";
-import { resolveStoragePath } from "@/lib/storage";
+import { readStoredFile, saveFile } from "@/lib/storage";
 import { TAXONOMY } from "@/lib/taxonomy";
 import { findTerms } from "./claims";
 import { RateLimitedError, TransientAiError, sleep } from "./errors";
@@ -274,7 +272,7 @@ export class MockProvider implements AiProvider {
   }
 
   private batchPath(id: string): string {
-    return resolveStoragePath(path.join("mock-batches", `${id}.json`));
+    return `mock-batches/${id}.json`;
   }
 
   async submitBatch(items: BatchItem[]): Promise<string> {
@@ -284,18 +282,17 @@ export class MockProvider implements AiProvider {
       createdAt: Date.now(),
       items: items.map((i) => ({ customId: i.customId, products: i.request.products, model: i.request.model })),
     };
-    await mkdir(path.dirname(this.batchPath(id)), { recursive: true });
-    await writeFile(this.batchPath(id), JSON.stringify(file));
+    await saveFile(this.batchPath(id), new TextEncoder().encode(JSON.stringify(file)));
     return id;
   }
 
   async batchStatus(batchId: string): Promise<"in_progress" | "ended"> {
-    const file = JSON.parse(await readFile(this.batchPath(batchId), "utf8")) as MockBatchFile;
+    const file = JSON.parse(new TextDecoder().decode(await readStoredFile(this.batchPath(batchId)))) as MockBatchFile;
     return Date.now() - file.createdAt >= env().MOCK_BATCH_DELAY_MS ? "ended" : "in_progress";
   }
 
   async *batchResults(batchId: string): AsyncIterable<BatchResult> {
-    const file = JSON.parse(await readFile(this.batchPath(batchId), "utf8")) as MockBatchFile;
+    const file = JSON.parse(new TextDecoder().decode(await readStoredFile(this.batchPath(batchId)))) as MockBatchFile;
     for (const item of file.items) {
       const output = { products: item.products.map(mockProduct) };
       yield { customId: item.customId, ok: true, output, usage: this.usage(item.model, BUILD_SYSTEM_PROMPT, buildUserPrompt(item.products), output) };

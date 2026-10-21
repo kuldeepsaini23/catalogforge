@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { connection, NextResponse } from "next/server";
+import { after, connection, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleError } from "@/lib/api";
 import { sanitizeOutputHtml } from "@/lib/cleaning/html";
@@ -10,6 +10,7 @@ import { productDetail } from "@/lib/queries";
 import { QUEUES, send } from "@/lib/queue";
 import { revalidateStorefront } from "@/lib/revalidate";
 import { isValidCategory } from "@/lib/taxonomy";
+import { kickWorker } from "@/lib/serverless-worker";
 
 export async function GET(_req: Request, ctx: RouteContext<"/api/products/[id]">) {
   await connection();
@@ -78,6 +79,7 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/products/[id]"
       await refreshPublished([id]);
       revalidateStorefront([product.handle], [product.category ?? "", patch.category ?? ""].filter(Boolean));
     }
+    after(() => kickWorker()); // the edit queued a re-translation
     return NextResponse.json(await productDetail(id));
   } catch (err) {
     return handleError(err);

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "bun install --frozen-lockfile",
+  "buildCommand": "bun run db:migrate && bun run build",
+  "crons": [{ "path": "/api/worker", "schedule": "0 6 * * *" }]
+}

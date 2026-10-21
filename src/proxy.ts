@@ -7,7 +7,8 @@ import { NextResponse, type NextRequest } from "next/server";
  * need ADMIN_PASSWORD via HTTP Basic auth (any user name). Without a password set, access is
  * open in development only. State-changing requests must also come from this site (CSRF).
  */
-const PUBLIC = [/^\/store(\/|$)/, /^\/api\/photos\//, /^\/api\/storefront-index$/];
+// /api/worker authenticates with its own secret (CRON_SECRET), checked in the route.
+const PUBLIC = [/^\/store(\/|$)/, /^\/api\/photos\//, /^\/api\/storefront-index$/, /^\/api\/worker$/];
 
 function passwordMatches(header: string | null, password: string): boolean {
   if (!header?.startsWith("Basic ")) return false;
