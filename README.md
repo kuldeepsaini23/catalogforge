@@ -22,6 +22,7 @@ CatalogForge cleans supplier data before any AI sees it, asks the model only for
 - [Scale strategy](#scale-strategy-queue-retries-restarts-duplicates)
 - [Accuracy strategy](#accuracy-strategy)
 - [Cost strategy](#cost-strategy)
+- [Bonus features and public API](#bonus-features-and-public-api)
 - [Tech stack and design decisions](#tech-stack-and-design-decisions)
 - [Technical write-up](#technical-write-up)
 - [Security](#security)
@@ -254,6 +255,35 @@ The remaining misses: short rows whose language is genuinely ambiguous (detected
 
 ---
 
+## Bonus features and public API
+
+| Level | Feature | Where |
+|---|---|---|
+| 1 | Real-time progress over Server-Sent Events | Imports page; `GET /api/imports/:id/events` |
+| 1 | Re-run AI on one product or a selection with different settings: automatic, Fast (Haiku), Thorough (Sonnet), Thorough + photos | Product page "Rebuild"; products list bulk "Rebuild" |
+| 1 | SEO fields per language: meta title (≤ 60) and description (≤ 155) built from the reviewed, translated copy, `hreflang` links for every country version, canonical and Open Graph | Storefront `<head>`; "Search preview" on the product page; `seo` in the JSON export |
+| 2 | Evaluation framework: labelled test set, accuracy per field | `bun run eval` (cleaner), `bun run real-run` (real models) |
+| 2 | Parallel processing with worker queues | pg-boss, `WORKER_CONCURRENCY` per worker, any number of workers |
+| 3 | Authentication | `ADMIN_PASSWORD` (single store; no multi-store) |
+| 3 | Webhook when an import finishes | `IMPORT_WEBHOOK_URL`, HMAC-signed with timestamp |
+| 3 | Public API for programmatic imports | below |
+| 3 | Shopify product CSV export | Products → Export |
+
+Not built: A/B testing of prompts/models, and multiple stores with separated data.
+
+**Public API** (HTTP Basic auth with `ADMIN_PASSWORD`, any user name):
+
+```bash
+# Start an import (returns 202 with the import id; work runs in the background)
+curl -u admin:$ADMIN_PASSWORD -F sheet=@samples/sample-200.csv -F photos=@samples/sample-200-photos.zip $URL/api/imports
+# Progress and reconciliation (or stream it: /api/imports/<id>/events)
+curl -u admin:$ADMIN_PASSWORD $URL/api/imports/<id>
+# Approve, send back with a note, or rebuild with a chosen model
+curl -u admin:$ADMIN_PASSWORD -H 'Content-Type: application/json'   -d '{"action":"retry","ids":["<product id>"],"model":"strong","photos":true}' $URL/api/products/actions
+# Export: format=json|csv|shopify, scope=approved|reviewed|all, translations=1
+curl -u admin:$ADMIN_PASSWORD "$URL/api/export?format=json&scope=approved&translations=1"
+```
+
 ## Tech stack and design decisions
 
 | Layer | Choice | Why |
@@ -337,7 +367,7 @@ Not done: a full `script-src` CSP (needs per-request nonces), per-IP rate limiti
 - `bun run serve` runs 4 web processes on one machine. Beyond that you'd run several hosts behind a CDN; the LISTEN/NOTIFY invalidation already works across hosts that share the database.
 - Translations run synchronously even in batch-mode imports; moving them to the Batches API would cut about a fifth of total spend.
 - Products re-built after publishing stay live with their last approved snapshot until re-approved (by design), and the dashboard shows them as "Live on storefront" next to their new status.
-- Single merchant with one shared admin password (no user accounts or roles). Translations cover title + description (tags/attributes stay English). No Sharp resizing: photos over 3.75 MB aren't sent to the vision model. Volume units (ml, l) aren't normalised.
+- Single merchant with one shared admin password (no user accounts or roles). Translations cover title, description, tags and attribute values; attribute names are labelled per language only for common keys. No Sharp resizing: photos over 3.75 MB aren't sent to the vision model. Volume units (ml, l) aren't normalised.
 - `EDGE-CASES.md` was written after the pipeline, not as the first commit (see its note).
 
 ---
