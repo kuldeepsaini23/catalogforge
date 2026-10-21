@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2, Pencil, RotateCcw, Send, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { Check, Loader2, Pencil, RotateCcw, Send, ShieldAlert, ShieldCheck, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -175,17 +175,28 @@ export function ProductDetailView({ id }: { id: string }) {
           </>
         }
         actions={
+          editing ? (
+            // While editing, the header holds only the edit actions (the floating bar repeats them).
+            <>
+              <Button variant="outline" onClick={() => setDraft(null)} disabled={saving}>
+                <X aria-hidden />
+                Discard
+              </Button>
+              <Button onClick={save} disabled={saving}>
+                {saving ? <Loader2 className="animate-spin" aria-hidden /> : <Check aria-hidden />}
+                Save changes
+              </Button>
+            </>
+          ) : (
           <>
             <Button variant="ghost" className="text-fail hover:bg-fail-soft hover:text-fail" onClick={() => setConfirmDelete(true)} disabled={acting !== null}>
               <Trash2 aria-hidden />
               Delete
             </Button>
-            {!editing && (
-              <Button variant="outline" onClick={() => setDraft(toDraft(p))} disabled={p.status === "pending"}>
-                <Pencil aria-hidden />
-                Edit
-              </Button>
-            )}
+            <Button variant="outline" onClick={() => setDraft(toDraft(p))} disabled={p.status === "pending"}>
+              <Pencil aria-hidden />
+              Edit
+            </Button>
             <Button variant="outline" onClick={() => setSendBack(true)} disabled={p.status === "pending" || acting !== null}>
               <Send aria-hidden />
               Send back
@@ -201,6 +212,7 @@ export function ProductDetailView({ id }: { id: string }) {
               {p.status === "approved" ? "Republish" : "Approve and publish"}
             </Button>
           </>
+          )
         }
       />
 
@@ -423,6 +435,8 @@ export function ProductDetailView({ id }: { id: string }) {
         </div>
       </div>
 
+      {/* Room under the last field so the floating bar never covers it. */}
+      {editing && <div className="h-20" aria-hidden />}
       {editing && (
         <FloatingBar label="Unsaved changes">
           <Pencil className="size-4 text-slate" aria-hidden />
