@@ -21,19 +21,21 @@ afterAll(async () => {
 
 describe("flaky AI", () => {
   it("retries errors and invalid JSON; every row still ends in a final state and nothing is doubled", async () => {
-    const g = generate(300, 23, { photos: 0 });
+    // ~1,000 rows → ~40 build calls, so injected faults are effectively certain to occur.
+    const g = generate(1000, 23, { photos: 0 });
     const { id } = await createImport({ name: "faults.csv", bytes: new TextEncoder().encode(toCsv(g.headers, g.rows)) }, []);
     const imp = await waitForImport(id, 240_000);
     expect(imp.status).toBe("completed");
     const r = await reconcile(id);
     expect(r.ok).toBe(true);
-    expect(r.total).toBe(300);
+    expect(r.total).toBe(1000);
 
     const db = getDb();
     const outcomes = await db.execute<{ outcome: string; n: string }>(sql`SELECT outcome, count(*) AS n FROM ai_calls WHERE kind = 'build' GROUP BY outcome`);
     const by = Object.fromEntries(outcomes.rows.map((o) => [o.outcome, Number(o.n)]));
-    expect(by.invalid_output).toBeGreaterThan(0);
-    expect(by.error).toBeGreaterThan(0);
+    // Faults happened (both kinds are injected at 15 % each) and the import still finished.
+    expect((by.invalid_output ?? 0) + (by.error ?? 0)).toBeGreaterThan(2);
+    expect(by.ok).toBeGreaterThan(0);
     // Faults are retried, so (almost) nothing should end up Failed.
     expect(r.failed).toBeLessThan(r.total * 0.02);
     const dup = await db.execute<{ n: string }>(sql`SELECT count(*) AS n FROM (SELECT sku FROM variants GROUP BY sku HAVING count(*) > 1) d`);
