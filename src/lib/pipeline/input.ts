@@ -3,14 +3,26 @@ import type { Lang } from "@/lib/cleaning/language";
 import { formatDims } from "@/lib/cleaning/row";
 import type { CleanRow } from "@/lib/cleaning/types";
 import type { ProductInput } from "@/lib/ai/types";
-import { titleKey } from "@/lib/cleaning/group";
-import { titleCase } from "@/lib/cleaning/text";
+import { tokenize } from "@/lib/cleaning/text";
 
 export interface InputPhoto {
   id: string;
   fileName: string;
   path: string;
   mediaType: string;
+}
+
+/** Removes the row's own colour/size words from its title, keeping the original spelling (umlauts etc.). */
+export function stripOptionWords(title: string, row: CleanRow): string {
+  const option = new Set([
+    ...tokenize(row.colour?.value ?? ""), ...tokenize(row.colour?.raw ?? ""),
+    ...tokenize(row.size?.value ?? ""), ...tokenize(row.size?.raw ?? ""),
+  ]);
+  const words = title.split(/\s+/).filter((w) => {
+    const t = tokenize(w);
+    return t.length === 0 || !t.every((x) => option.has(x) || /^\d+(cm|mm|l|g)?$/.test(x));
+  });
+  return words.join(" ").replace(/\s+[-–/]\s*$/, "").trim();
 }
 
 function mostCommon<T>(values: T[]): T | undefined {
@@ -36,12 +48,10 @@ function pick(rows: CleanRow[], get: (r: CleanRow) => string | undefined): { val
 export function toProductInput(group: ProductGroup, photos: InputPhoto[], merchantNote?: string | null): ProductInput {
   const rows = group.rows;
   const facts: Record<string, string> = {};
-  const title = pick(rows, (r) => (r.title ? titleKey(r) && r.title.value : undefined));
+  // Title hint without each row's own option words ("Terracotta Pot Red L" → "Terracotta Pot").
+  const title = pick(rows, (r) => (r.title ? stripOptionWords(r.title.value, r) || r.title.value : undefined));
   if (title) {
-    // Strip this row's own option words from the title hint ("Terracotta Pot Red L" → "Terracotta Pot").
-    const row = rows.find((r) => r.title?.value === title.value)!;
-    const stripped = titleKey(row);
-    facts.title = stripped ? titleCase(stripped) : title.value;
+    facts.title = title.value;
     facts.title_language = title.language;
   }
   const desc = pick(rows, (r) => r.description?.value.text);

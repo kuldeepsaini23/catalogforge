@@ -61,6 +61,10 @@ const TITLE_WORDS: Record<string, string> = {
   bol: "Bowl", assiette: "Plate", coussin: "Cushion", plaid: "Throw", bougie: "Candle", panier: "Basket",
   verre: "Glass", planche: "Board", carafe: "Carafe", tapis: "Rug", arrosoir: "Watering Can", lin: "Linen",
   grès: "Stoneware", "terre cuite": "Terracotta", céramique: "Ceramic", bois: "Wood", chêne: "Oak", en: "", de: "",
+  glasiertes: "Glazed", glasvase: "Glass Vase", keramikschale: "Ceramic Bowl", eichen: "Oak",
+  servierbrett: "Serving Board", sojakerze: "Soy Candle", rattankorb: "Rattan Basket", emaille: "Enamel",
+  jute: "Jute", baumwoll: "Cotton", geschirrtuch: "Tea Towel", housse: "Cover", torchon: "Tea Towel", mug: "Mug",
+  "émaillé": "Glazed", "cache-pot": "Planter", "fabriqué": "", "coton": "Cotton", "rotin": "Rattan", "émail": "Enamel", soja: "Soy", service: "Serving",
 };
 
 function englishTitle(input: ProductInput): { title: string; translated: boolean } {
@@ -117,7 +121,10 @@ export function mockProduct(input: ProductInput): AiWireProduct {
   if (facts.material) bullets.push(`<li><strong>Material:</strong> ${escapeHtml(facts.material)}</li>`);
   if (facts.dimensions) bullets.push(`<li><strong>Dimensions:</strong> ${escapeHtml(facts.dimensions)}</li>`);
   if (facts.colours) bullets.push(`<li><strong>Colours:</strong> ${escapeHtml(facts.colours)}</li>`);
-  for (const c of claims) bullets.push(`<li>${escapeHtml(c.text)}</li>`);
+  for (const c of claims) {
+    const longer = claims.some((o) => o !== c && o.text.length > c.text.length && o.text.toLowerCase().startsWith(c.text.toLowerCase()));
+    if (!longer) bullets.push(`<li>${escapeHtml(c.text)}</li>`);
+  }
   let intro = facts.description && facts.description_language === "en" ? facts.description : `${title}${facts.material ? ` made from ${facts.material.toLowerCase()}` : ""}.`;
   // ~3% of products: the "model" smuggles an unsupported claim into the copy (verifier must catch it).
   if (roll < 0.03) intro += " Fully frost-proof and dishwasher-safe.";

@@ -41,12 +41,12 @@ export async function getMetrics() {
       FROM imports i WHERE i.started_at IS NOT NULL ORDER BY i.created_at DESC LIMIT 10`),
   ]);
 
-  const products: Record<string, number> = { pending: 0, done: 0, needs_review: 0, failed: 0, approved: 0 };
-  for (const r of statusRes.rows) products[r.status] = num(r.n);
+  const products = { pending: 0, done: 0, needs_review: 0, failed: 0, approved: 0 };
+  for (const r of statusRes.rows) if (r.status in products) products[r.status as keyof typeof products] = num(r.n);
   const totalProducts = Object.values(products).reduce((a, b) => a + b, 0);
   const processed = totalProducts - products.pending;
-  const rows: Record<string, number> = { pending: 0, done: 0, needs_review: 0, failed: 0 };
-  for (const r of rowRes.rows) rows[r.status] = num(r.n);
+  const rows = { pending: 0, done: 0, needs_review: 0, failed: 0 };
+  for (const r of rowRes.rows) if (r.status in rows) rows[r.status as keyof typeof rows] = num(r.n);
 
   // Savings decomposition: baseline (strong, sync, uncached) → actual.
   let actual = 0;

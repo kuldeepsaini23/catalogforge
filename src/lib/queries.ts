@@ -97,7 +97,7 @@ export async function listProducts(f: ProductFilters) {
       or(
         ilike(schema.products.title, like),
         ilike(schema.products.handle, like),
-        sql`EXISTS (SELECT 1 FROM variants v WHERE v.product_id = ${schema.products.id} AND v.sku ILIKE ${like})`,
+        sql`EXISTS (SELECT 1 FROM variants v WHERE v.product_id = "products"."id" AND v.sku ILIKE ${like})`,
       )!,
     );
   }
@@ -107,7 +107,7 @@ export async function listProducts(f: ProductFilters) {
   if (f.confidence === "low") conds.push(sql`${schema.products.minConfidence} < 70`);
   if (f.confidence === "mid") conds.push(sql`${schema.products.minConfidence} BETWEEN 70 AND 89`);
   if (f.confidence === "high") conds.push(sql`${schema.products.minConfidence} >= 90`);
-  if (f.outOfDate) conds.push(sql`EXISTS (SELECT 1 FROM translations t WHERE t.product_id = ${schema.products.id} AND t.status = 'out_of_date')`);
+  if (f.outOfDate) conds.push(sql`EXISTS (SELECT 1 FROM translations t WHERE t.product_id = "products"."id" AND t.status = 'out_of_date')`);
   const where = conds.length ? and(...conds) : undefined;
   const col = SORTS[f.sort ?? "updated"];
   const order = f.dir === "asc" ? sql`${col} ASC NULLS LAST` : sql`${col} DESC NULLS LAST`;
@@ -127,10 +127,10 @@ export async function listProducts(f: ProductFilters) {
         aiCostNanos: schema.products.aiCostNanos,
         processingMs: schema.products.processingMs,
         updatedAt: schema.products.updatedAt,
-        variantCount: sql<number>`(SELECT count(*)::int FROM variants v WHERE v.product_id = ${schema.products.id})`,
-        priceMin: sql<number | null>`(SELECT min(price_cents) FROM variants v WHERE v.product_id = ${schema.products.id})`,
-        currency: sql<string | null>`(SELECT max(currency) FROM variants v WHERE v.product_id = ${schema.products.id})`,
-        photoId: sql<string | null>`(SELECT p.id::text FROM photos p WHERE p.product_id = ${schema.products.id} ORDER BY p.match_score DESC LIMIT 1)`,
+        variantCount: sql<number>`(SELECT count(*)::int FROM variants v WHERE v.product_id = "products"."id")`,
+        priceMin: sql<number | null>`(SELECT min(price_cents) FROM variants v WHERE v.product_id = "products"."id")`,
+        currency: sql<string | null>`(SELECT max(currency) FROM variants v WHERE v.product_id = "products"."id")`,
+        photoId: sql<string | null>`(SELECT p.id::text FROM photos p WHERE p.product_id = "products"."id" ORDER BY p.match_score DESC LIMIT 1)`,
       })
       .from(schema.products)
       .where(where)
