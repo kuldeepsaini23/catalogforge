@@ -1,0 +1,252 @@
+{
+  "rows": 200,
+  "photos": 60,
+  "gateway": true,
+  "modelIds": {
+    "cheap": "claude-haiku-4-5",
+    "strong": "claude-sonnet-4-5"
+  },
+  "importSeconds": 47,
+  "totalSecondsWithTranslations": 74,
+  "rowsPerMinute": 254,
+  "reconciliation": {
+    "total": 200,
+    "pending": 0,
+    "done": 158,
+    "needsReview": 42,
+    "failed": 0,
+    "sheetRows": 200,
+    "ok": true,
+    "problems": []
+  },
+  "products": {
+    "pending": 0,
+    "done": 56,
+    "needs_review": 11,
+    "failed": 0,
+    "approved": 0,
+    "total": 67,
+    "processed": 67
+  },
+  "grouping": {
+    "trueFamilies": 67,
+    "products": 67,
+    "splitFamilies": 0,
+    "mixedProducts": 0
+  },
+  "cost": {
+    "actual": "$0.45",
+    "baseline": "$1.27",
+    "perProduct": "$0.0066",
+    "per1kProducts": "$6.65",
+    "savedPct": 65
+  },
+  "models": [
+    {
+      "model": "claude-haiku-4-5",
+      "mode": "sync",
+      "kind": "build",
+      "calls": 8,
+      "products": 64,
+      "visionCalls": 0,
+      "inputTokens": 69558,
+      "outputTokens": 34975,
+      "costNanos": 244433000
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "mode": "sync",
+      "kind": "translate",
+      "calls": 18,
+      "products": 134,
+      "visionCalls": 0,
+      "inputTokens": 35280,
+      "outputTokens": 25695,
+      "costNanos": 163755000
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "mode": "sync",
+      "kind": "build",
+      "calls": 1,
+      "products": 3,
+      "visionCalls": 0,
+      "inputTokens": 4946,
+      "outputTokens": 1853,
+      "costNanos": 37098000
+    }
+  ],
+  "outcomes": {
+    "ok": 27
+  },
+  "speed": {
+    "avgMs": 25764,
+    "p50Ms": 25263,
+    "p95Ms": 32402,
+    "maxMs": 32644,
+    "slowest": [
+      {
+        "id": "65f5c42f-b18e-4727-8088-0f31d6bb605e",
+        "handle": "alma-dale-stoneware-mug",
+        "title": "Alma Dale Stoneware Mug",
+        "ms": 32644,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "5e4babbc-f79c-4294-841e-4470ab01f0ea",
+        "handle": "linden-cabin-jute-rug",
+        "title": "Linden Cabin Jute Rug",
+        "ms": 32547,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "8c459d34-8e22-403c-9e44-d835d92b3df3",
+        "handle": "haven-cabin-ceramic-bowl",
+        "title": "Haven Cabin Ceramic Bowl",
+        "ms": 32491,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "f9b50d52-769a-4a55-9af1-879bf08bf714",
+        "handle": "grove-cabin-jute-rug",
+        "title": "Grove Cabin Jute Rug",
+        "ms": 32423,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "e9808f0a-5b8b-4173-8d5d-433bd2df02a7",
+        "handle": "nordic-fable-dale-organic-cotton-tea-towel",
+        "title": "Nordic Fable Dale Organic Cotton Tea Towel",
+        "ms": 32354,
+        "model": "claude-haiku-4-5"
+      }
+    ]
+  },
+  "claims": {
+    "kept": 120,
+    "dropped": 0,
+    "droppedExamples": []
+  },
+  "reviewReasons": [
+    {
+      "reason": "Copy says \"handmade\" but no source row supports it",
+      "n": "2"
+    },
+    {
+      "reason": "Copy says \"handmade\" but no source row supports it; Missing price for SKU VASE-1009-CLE-S (row 51); Model: Row 51 is missing price data; one variant (VASE-1009-CLE-S) has no price or currency recorded.",
+      "n": "1"
+    },
+    {
+      "reason": "Copy says \"organic\" but no source row supports it; Row 120: Conflicting rows for SKU BSKT-1037-NAT-S: price 2700 (row 117) vs 3100 (row 120); Model: Conflicting rows for SKU BSKT-1037-NAT-S with different prices: 2700 (row 117) vs 3100 (row 120)",
+      "n": "1"
+    },
+    {
+      "reason": "Missing price for SKU BSKT-1013-NAT-S (row 64); Model: Price missing for size S variant (row 64)",
+      "n": "1"
+    },
+    {
+      "reason": "Missing price for SKU CUSH-1002-RUS-40X40C (row 31); Model: Row 31 (Rust variant, 40 x 40 cm) is missing price information",
+      "n": "1"
+    },
+    {
+      "reason": "Missing price for SKU MUG-1014-BLA (row 43); Model: Row 43 (Black variant) is missing price information",
+      "n": "1"
+    },
+    {
+      "reason": "Model: Country of origin listed as India but product stated as handmade in Portugal—conflicting geographic information.",
+      "n": "1"
+    },
+    {
+      "reason": "Row 116: Conflicting rows for SKU TP-1036-TER-S: price 1399 (row 42) vs 1799 (row 116); Model: Conflicting rows for SKU TP-1036-TER-S with different prices: 1399 (row 42) vs 1799 (row 116)",
+      "n": "1"
+    },
+    {
+      "reason": "Row 129: Conflicting rows for SKU BOWL-1040-WHI-15CM: price 2000 (row 9) vs 2300 (row 129); Model: Conflicting rows for SKU BOWL-1040-WHI-15CM with different prices: 2000 (row 9) vs 2300 (row 129)",
+      "n": "1"
+    },
+    {
+      "reason": "Row 38: No currency stated for this product and the sheet mixes EUR, GBP, USD; please confirm the currency",
+      "n": "1"
+    }
+  ],
+  "translations": [
+    {
+      "locale": "de",
+      "status": "machine",
+      "n": "134"
+    },
+    {
+      "locale": "fr",
+      "status": "machine",
+      "n": "134"
+    }
+  ],
+  "sample": [
+    {
+      "title": "Studio Alma Cabin Ceramic Bowl",
+      "category": "Kitchen & Dining > Tableware > Bowls",
+      "description_html": "<p>The Studio Alma Cabin Ceramic Bowl is made from ceramic with a food-safe glaze. Available in two sizes, this versatile bowl is suitable for everyday use.</p><ul><li>Made in Portugal</li><li>White ceramic construction</li><li>Convenient care and maintenance</li></ul>",
+      "claims": [
+        {
+          "text": "Food-safe glaze",
+          "quote": "Food-safe glaze. Oven-safe up to 220 °C.",
+          "source": "row 9, column Notes"
+        },
+        {
+          "text": "Oven-safe up to 220 °C",
+          "quote": "Food-safe glaze. Oven-safe up to 220 °C.",
+          "source": "row 9, column Notes"
+        },
+        {
+          "text": "Dishwasher safe",
+          "quote": "Dishwasher safe.",
+          "source": "row 9, column Care"
+        }
+      ],
+      "dropped_claims": [],
+      "confidence": {
+        "tags": 90,
+        "title": 95,
+        "category": 100,
+        "description": 90,
+        "attributes.Care": 100,
+        "attributes.Brand": 100,
+        "attributes.Colour": 100,
+        "attributes.Material": 100,
+        "attributes.Sizes Available": 100,
+        "attributes.Country of Origin": 100
+      },
+      "status": "needs_review"
+    },
+    {
+      "title": "Loma Birch Dale Enamel Watering Can",
+      "category": "Home & Garden > Plants > Watering Cans",
+      "description_html": "<p>Made from rust-resistant enamelled steel in Forest Green or White. Available in 1.5 l and 5 l sizes to suit different gardening needs.</p><p><strong>Care:</strong> Empty and dry after use. Not suitable for drinking water.</p>",
+      "claims": [
+        {
+          "text": "Rust-resistant enamel",
+          "quote": "Rust-resistant enamel; not suitable for drinking water.",
+          "source": "row 15, column Notes"
+        },
+        {
+          "text": "Not suitable for drinking water",
+          "quote": "Rust-resistant enamel; not suitable for drinking water.",
+          "source": "row 15, column Notes"
+        }
+      ],
+      "dropped_claims": [],
+      "confidence": {
+        "tags": 85,
+        "title": 95,
+        "category": 95,
+        "description": 90,
+        "attributes.Brand": 100,
+        "attributes.Material": 100,
+        "attributes.Size options": 100,
+        "attributes.Colour options": 100,
+        "attributes.Country of origin": 100
+      },
+      "status": "done"
+    }
+  ]
+}

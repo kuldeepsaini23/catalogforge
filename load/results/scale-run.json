@@ -1,0 +1,233 @@
+{
+  "at": "2026-10-21T07:33:59.953Z",
+  "seed": {
+    "rows": 5000,
+    "products": 1646,
+    "seconds": 24.251,
+    "reconciliation": {
+      "total": 5000,
+      "pending": 0,
+      "done": 3872,
+      "needsReview": 1118,
+      "failed": 10,
+      "sheetRows": 5000,
+      "ok": true,
+      "problems": []
+    }
+  },
+  "big": {
+    "rows": 10000,
+    "products": 3297,
+    "mode": "batch",
+    "uploadResponseMs": 435,
+    "seconds": 64.977,
+    "reconciliation": {
+      "total": 10000,
+      "pending": 0,
+      "done": 7787,
+      "needsReview": 2193,
+      "failed": 20,
+      "sheetRows": 10000,
+      "ok": true,
+      "problems": []
+    }
+  },
+  "k6": {
+    "exitCode": 0,
+    "product": {
+      "p50": 28.5254,
+      "p95": 63.2852,
+      "p99": 160.2307,
+      "avg": 33.55575034160978,
+      "count": 7503
+    },
+    "collection": {
+      "p50": 34.5996,
+      "p95": 71.5901,
+      "p99": 146.3215,
+      "avg": 39.985387075283164,
+      "count": 7503
+    },
+    "failedRate": 0,
+    "totalRequests": 7503,
+    "rps": 49.97638051513363
+  },
+  "metrics": {
+    "products": {
+      "pending": 0,
+      "done": 2563,
+      "needs_review": 999,
+      "failed": 0,
+      "approved": 854,
+      "total": 4416,
+      "processed": 4416
+    },
+    "rows": {
+      "pending": 0,
+      "done": 11659,
+      "needs_review": 3311,
+      "failed": 30,
+      "total": 15000
+    },
+    "cost": {
+      "actualNanos": 10558059500,
+      "baselineNanos": 49936677000,
+      "savedNanos": 39378617500,
+      "savedRoutingNanos": 32716322000,
+      "savedBatchingNanos": 5813951900,
+      "savedCachingNanos": 848343600,
+      "perProductNanos": 2390865
+    },
+    "models": [
+      {
+        "model": "claude-haiku-4-5",
+        "mode": "batch",
+        "kind": "build",
+        "calls": 636,
+        "products": 5078,
+        "visionCalls": 0,
+        "inputTokens": 3653807,
+        "outputTokens": 1571242,
+        "costNanos": 5425968500
+      },
+      {
+        "model": "claude-haiku-4-5",
+        "mode": "sync",
+        "kind": "translate",
+        "calls": 684,
+        "products": 6858,
+        "visionCalls": 0,
+        "inputTokens": 911224,
+        "outputTokens": 787384,
+        "costNanos": 4744107600
+      },
+      {
+        "model": "claude-sonnet-4-5",
+        "mode": "batch",
+        "kind": "build",
+        "calls": 29,
+        "products": 111,
+        "visionCalls": 0,
+        "inputTokens": 113173,
+        "outputTokens": 34845,
+        "costNanos": 387983400
+      }
+    ],
+    "costOverTime": [
+      {
+        "bucket": "2026-10-21T07:30:00.000Z",
+        "costNanos": 2194886100,
+        "baselineNanos": 12985551000,
+        "calls": 253
+      },
+      {
+        "bucket": "2026-10-21T07:31:00.000Z",
+        "costNanos": 1439043000,
+        "baselineNanos": 8605404000,
+        "calls": 168
+      },
+      {
+        "bucket": "2026-10-21T07:32:00.000Z",
+        "costNanos": 3918391600,
+        "baselineNanos": 19131384000,
+        "calls": 496
+      },
+      {
+        "bucket": "2026-10-21T07:33:00.000Z",
+        "costNanos": 3005738800,
+        "baselineNanos": 9214338000,
+        "calls": 432
+      }
+    ],
+    "speed": {
+      "avgMs": 19327,
+      "p50Ms": 14841,
+      "p95Ms": 43260,
+      "maxMs": 46400,
+      "slowest": [
+        {
+          "id": "fa245a01-0588-4ae4-8ab2-b7886a1944e7",
+          "handle": "watering-can-enamel-studio-juniper-jetty-signature",
+          "title": "Watering Can Enamel Studio Juniper Jetty Signature",
+          "ms": 46400,
+          "model": "claude-sonnet-4-5"
+        },
+        {
+          "id": "e05d5697-bb29-440e-8e1b-b564615199ab",
+          "handle": "alma-cove-ridge-originals-planter",
+          "title": "Alma Cove Ridge Originals Planter",
+          "ms": 46343,
+          "model": "claude-sonnet-4-5"
+        },
+        {
+          "id": "5de29d85-e77a-4f2c-95d6-54676ce26f23",
+          "handle": "haven-bay-reserve-soy-candle",
+          "title": "Haven Bay Reserve Soy Candle",
+          "ms": 46329,
+          "model": "claude-sonnet-4-5"
+        },
+        {
+          "id": "242b8d33-1ecf-45ad-ba17-77503002f453",
+          "handle": "alma-ember-terrace-select-rattan-basket",
+          "title": "Alma Ember Terrace Select Rattan Basket",
+          "ms": 46328,
+          "model": "claude-sonnet-4-5"
+        },
+        {
+          "id": "2bf6f4ad-5604-4db9-8198-3ec6f70fffcc",
+          "handle": "isle-knoll-signature-jute-rug",
+          "title": "Isle Knoll Signature Jute Rug",
+          "ms": 46309,
+          "model": "claude-sonnet-4-5"
+        }
+      ]
+    },
+    "imports": [
+      {
+        "id": "327a1526-8478-4ae0-83a2-9f0b67890745",
+        "fileName": "supplier-10000.csv",
+        "rows": 10000,
+        "seconds": 65,
+        "rowsPerSecond": 153.9,
+        "status": "completed",
+        "mode": "batch",
+        "costNanos": 8200605800
+      },
+      {
+        "id": "e06ee232-9477-4fb8-a24d-0080e6d4f202",
+        "fileName": "supplier-5000.csv",
+        "rows": 5000,
+        "seconds": 24,
+        "rowsPerSecond": 206.2,
+        "status": "completed",
+        "mode": "batch",
+        "costNanos": 2357453700
+      }
+    ],
+    "translation": {
+      "de": {
+        "translated": 6794,
+        "manual": 0,
+        "outOfDate": 0,
+        "failed": 0,
+        "expected": 8832
+      },
+      "fr": {
+        "translated": 6718,
+        "manual": 0,
+        "outOfDate": 0,
+        "failed": 0,
+        "expected": 8832
+      }
+    },
+    "outOfDate": 0,
+    "claims": {
+      "kept": 5225,
+      "dropped": 161,
+      "productsWithDropped": 161
+    },
+    "aiOutcomes": {
+      "ok": 1349
+    }
+  }
+}

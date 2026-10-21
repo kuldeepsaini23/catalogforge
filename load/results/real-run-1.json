@@ -1,0 +1,287 @@
+{
+  "rows": 200,
+  "photos": 60,
+  "gateway": true,
+  "modelIds": {
+    "cheap": "claude-haiku-4-5",
+    "strong": "claude-sonnet-4-5"
+  },
+  "importSeconds": 77,
+  "totalSecondsWithTranslations": 143,
+  "rowsPerMinute": 156,
+  "reconciliation": {
+    "total": 200,
+    "pending": 0,
+    "done": 129,
+    "needsReview": 71,
+    "failed": 0,
+    "sheetRows": 200,
+    "ok": true,
+    "problems": []
+  },
+  "products": {
+    "pending": 0,
+    "done": 46,
+    "needs_review": 21,
+    "failed": 0,
+    "approved": 0,
+    "total": 67,
+    "processed": 67
+  },
+  "grouping": {
+    "trueFamilies": 67,
+    "products": 67,
+    "splitFamilies": 0,
+    "mixedProducts": 0
+  },
+  "cost": {
+    "actual": "$0.48",
+    "baseline": "$1.36",
+    "perProduct": "$0.0072",
+    "per1kProducts": "$7.22",
+    "savedPct": 64
+  },
+  "models": [
+    {
+      "model": "claude-haiku-4-5",
+      "mode": "sync",
+      "kind": "build",
+      "calls": 8,
+      "products": 64,
+      "visionCalls": 0,
+      "inputTokens": 69558,
+      "outputTokens": 38859,
+      "costNanos": 263853000
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "mode": "sync",
+      "kind": "translate",
+      "calls": 19,
+      "products": 142,
+      "visionCalls": 0,
+      "inputTokens": 37594,
+      "outputTokens": 27618,
+      "costNanos": 175684000
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "mode": "sync",
+      "kind": "build",
+      "calls": 1,
+      "products": 3,
+      "visionCalls": 0,
+      "inputTokens": 4946,
+      "outputTokens": 1836,
+      "costNanos": 43915500
+    }
+  ],
+  "outcomes": {
+    "ok": 27,
+    "invalid_output": 1
+  },
+  "speed": {
+    "avgMs": 27243,
+    "p50Ms": 26549,
+    "p95Ms": 31750,
+    "maxMs": 31801,
+    "slowest": [
+      {
+        "id": "70a52270-0605-436b-9a9d-622cf928a9f4",
+        "handle": "moss-atelier-glazed-planter",
+        "title": "Moss Atelier Glazed Planter",
+        "ms": 31801,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "d761b5dd-7083-4ef8-909f-b6180f05ed21",
+        "handle": "cove-dale-stoneware-mug",
+        "title": "Cove Dale Stoneware Mug",
+        "ms": 31785,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "311c0c64-3ac4-465b-b1ab-949bbf32725a",
+        "handle": "linden-atelier-oak-serving-board",
+        "title": "Linden Atelier Oak Serving Board",
+        "ms": 31768,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "ec9902e7-06db-4591-b214-c5affa7d2c6c",
+        "handle": "moss-cabin-ceramic-bowl",
+        "title": "Moss Cabin Ceramic Bowl",
+        "ms": 31756,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "542554fd-2927-4a18-8c51-b2ace9b5c1e7",
+        "handle": "kestrel-atelier-terracotta-pot",
+        "title": "Kestrel Atelier Terracotta Pot",
+        "ms": 31736,
+        "model": "claude-haiku-4-5"
+      }
+    ]
+  },
+  "claims": {
+    "kept": 113,
+    "dropped": 6,
+    "droppedExamples": [
+      {
+        "product": "Pebble Bay Soy Candle",
+        "text": "Vegan soy wax",
+        "quote": "Veganes Sojawachs, Baumwolldocht.",
+        "reason": "\"vegan\" is not stated in the cited source",
+        "source": "row 112, column Notes"
+      },
+      {
+        "product": "Cove Bay Cotton Tea Towel",
+        "text": "Machine washable at 60 °C",
+        "quote": "Machine wash 60 °C.",
+        "reason": "\"machine-washable\" is not stated in the cited source",
+        "source": "row 66, column Care"
+      },
+      {
+        "product": "Rowan Bay Rattan Basket",
+        "text": "Fair Trade certified",
+        "quote": "Fair-Trade-zertifiziert.",
+        "reason": "\"fair trade\" is not stated in the cited source",
+        "source": "row 117, column Notes"
+      },
+      {
+        "product": "Cove Dale Stoneware Mug",
+        "text": "Lead-free glaze",
+        "quote": "Bleifreie Glasur.",
+        "reason": "\"lead-free\" is not stated in the cited source",
+        "source": "row 39, column Notes"
+      },
+      {
+        "product": "Sorrel Bay Linen Cushion Cover",
+        "text": "Machine washable at 30 °C",
+        "quote": "Machine wash 30 °C, do not tumble dry.",
+        "reason": "\"machine-washable\" is not stated in the cited source",
+        "source": "row 71, column Care"
+      },
+      {
+        "product": "Cove Cabin Oak Serving Board",
+        "text": "Treated with food-safe oil",
+        "quote": "FSC-zertifizierte Eiche, mit lebensmittelechtem Öl behandelt.",
+        "reason": "\"food-safe\" is not stated in the cited source",
+        "source": "row 55, column Notes"
+      }
+    ]
+  },
+  "reviewReasons": [
+    {
+      "reason": "Copy says \"handmade\" but no source row supports it; Missing price for SKU VASE-1009-CLE-S (row 51); Model: Row 51 has missing price information",
+      "n": "1"
+    },
+    {
+      "reason": "Copy says \"machine-washable\" but no source row supports it; Model: Notes mention 'Organic cotton, GOTS certified' but material is listed as 100% linen—unclear if linen is organic or if organic cotton refers to another component",
+      "n": "1"
+    },
+    {
+      "reason": "Low confidence: attributes.Country of Origin (60); Model: Country of origin conflict: rows state 'Handmade in Portugal' but origin field shows 'India'. Clarification needed on actual manufacturing location.",
+      "n": "1"
+    },
+    {
+      "reason": "Missing price for SKU BSKT-1013-NAT-S (row 64); Model: Row 64 (size S) is missing price data; only size M has pricing available",
+      "n": "1"
+    },
+    {
+      "reason": "Missing price for SKU CUSH-1002-RUS-40X40C (row 31); Model: Row 31 (Rust 40 x 40 cm variant) has missing price data",
+      "n": "1"
+    },
+    {
+      "reason": "Missing price for SKU MUG-1014-BLA (row 43); Model: Row 43 (Black variant) has missing price data; description is in French and translated to English",
+      "n": "1"
+    },
+    {
+      "reason": "Model: Country of origin listed as India but product stated as handmade in Portugal",
+      "n": "1"
+    },
+    {
+      "reason": "Model: Origin listed as India in facts, but notes state handwoven by artisans in Vietnam. Discrepancy in manufacturing location.",
+      "n": "1"
+    },
+    {
+      "reason": "Model: Origin marked as Italy in facts but handmade stated as Portugal in notes. Not verified which is the actual origin.",
+      "n": "1"
+    },
+    {
+      "reason": "Copy says \"handmade\" but no source row supports it",
+      "n": "1"
+    }
+  ],
+  "translations": [
+    {
+      "locale": "de",
+      "status": "machine",
+      "n": "134"
+    },
+    {
+      "locale": "fr",
+      "status": "machine",
+      "n": "134"
+    }
+  ],
+  "sample": [
+    {
+      "title": "Ember Dale Glass Vase",
+      "category": "Home & Garden > Decor > Vases",
+      "description_html": "<p>Hand-crafted vase made from <strong>mouth-blown glass</strong> with natural colour variations. Available in amber, clear, and sage tones, in two sizes (S and L).</p><p>Made in Germany. Not watertight above the shoulder seam. Hand wash only.</p>",
+      "claims": [
+        {
+          "text": "Hand wash only",
+          "quote": "Hand wash only.",
+          "source": "row 68, column Care"
+        },
+        {
+          "text": "Not watertight above the shoulder seam",
+          "quote": "Not watertight above the shoulder seam.",
+          "source": "row 68, column Notes"
+        }
+      ],
+      "dropped_claims": [],
+      "confidence": {
+        "tags": 88,
+        "title": 95,
+        "category": 95,
+        "description": 85,
+        "attributes.care": 100,
+        "attributes.brand": 100,
+        "attributes.sizes": 100,
+        "attributes.origin": 100,
+        "attributes.colours": 100,
+        "attributes.material": 100
+      },
+      "status": "needs_review"
+    },
+    {
+      "title": "Garden Thistle Atelier Glazed Planter",
+      "category": "Home & Garden > Plants > Planters & Pots",
+      "description_html": "<p>Decorative planter crafted from <strong>glazed stoneware</strong> in a range of sophisticated colours: navy, mustard, cream, and sage. Available in 20 cm and 30 cm sizes.</p><p>Frost-resistant (not frost-proof). Hand wash only, not dishwasher safe. Made in Germany.</p>",
+      "claims": [
+        {
+          "text": "Frost-resistant (not frost-proof)",
+          "quote": "Frost-resistant, not frost-proof.",
+          "source": "row 69, column Notes"
+        }
+      ],
+      "dropped_claims": [],
+      "confidence": {
+        "tags": 90,
+        "title": 95,
+        "category": 95,
+        "description": 90,
+        "attributes.care": 100,
+        "attributes.brand": 100,
+        "attributes.sizes": 100,
+        "attributes.origin": 100,
+        "attributes.colours": 100,
+        "attributes.material": 100
+      },
+      "status": "done"
+    }
+  ]
+}

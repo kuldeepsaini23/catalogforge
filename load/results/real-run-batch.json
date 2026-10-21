@@ -1,0 +1,240 @@
+{
+  "rows": 200,
+  "photos": 60,
+  "gateway": true,
+  "modelIds": {
+    "cheap": "claude-haiku-4-5",
+    "strong": "claude-sonnet-4-5"
+  },
+  "importSeconds": 252,
+  "totalSecondsWithTranslations": 312,
+  "rowsPerMinute": 48,
+  "reconciliation": {
+    "total": 200,
+    "pending": 0,
+    "done": 121,
+    "needsReview": 79,
+    "failed": 0,
+    "sheetRows": 200,
+    "ok": true,
+    "problems": []
+  },
+  "products": {
+    "pending": 0,
+    "done": 46,
+    "needs_review": 21,
+    "failed": 0,
+    "approved": 0,
+    "total": 67,
+    "processed": 67
+  },
+  "grouping": {
+    "trueFamilies": 67,
+    "products": 67,
+    "splitFamilies": 0,
+    "mixedProducts": 0
+  },
+  "cost": {
+    "actual": "$0.31",
+    "baseline": "$1.29",
+    "perProduct": "$0.0047",
+    "per1kProducts": "$4.66",
+    "savedPct": 76
+  },
+  "models": [
+    {
+      "model": "claude-haiku-4-5",
+      "mode": "batch",
+      "kind": "build",
+      "calls": 8,
+      "products": 64,
+      "visionCalls": 0,
+      "inputTokens": 69558,
+      "outputTokens": 36263,
+      "costNanos": 125436500
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "mode": "sync",
+      "kind": "translate",
+      "calls": 19,
+      "products": 139,
+      "visionCalls": 0,
+      "inputTokens": 36393,
+      "outputTokens": 25768,
+      "costNanos": 165233000
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "mode": "batch",
+      "kind": "build",
+      "calls": 1,
+      "products": 3,
+      "visionCalls": 0,
+      "inputTokens": 4946,
+      "outputTokens": 1825,
+      "costNanos": 21875250
+    }
+  ],
+  "outcomes": {
+    "ok": 28
+  },
+  "speed": {
+    "avgMs": 246951,
+    "p50Ms": 246999,
+    "p95Ms": 247138,
+    "maxMs": 247153,
+    "slowest": [
+      {
+        "id": "ddf5ac1d-34aa-418f-8244-f672ea1a79ce",
+        "handle": "nook-atelier-rattan-basket",
+        "title": "Nook Atelier Rattan Basket",
+        "ms": 247153,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "d6f81c40-7b60-44a2-8822-74ded63cee41",
+        "handle": "kestrel-cabin-stoneware-mug",
+        "title": "Kestrel Cabin Stoneware Mug",
+        "ms": 247150,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "681c8eb7-5d5c-4d56-8d50-062d0fd30e4b",
+        "handle": "haven-bay-jute-rug",
+        "title": "Haven Bay Jute Rug",
+        "ms": 247143,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "73ab7298-1a95-40f3-85e8-ede9a31b295e",
+        "handle": "grove-atelier-soy-candle",
+        "title": "Grove Atelier Soy Candle",
+        "ms": 247140,
+        "model": "claude-haiku-4-5"
+      },
+      {
+        "id": "13c0ae8b-5186-4c9a-bc69-5f68a7e0b0bc",
+        "handle": "sorrel-atelier-soy-candle",
+        "title": "Sorrel Atelier Soy Candle",
+        "ms": 247134,
+        "model": "claude-haiku-4-5"
+      }
+    ]
+  },
+  "claims": {
+    "kept": 119,
+    "dropped": 0,
+    "droppedExamples": []
+  },
+  "reviewReasons": [
+    {
+      "reason": "Copy says \"handmade\" but no source row supports it",
+      "n": "5"
+    },
+    {
+      "reason": "Copy says \"organic\" but no source row supports it",
+      "n": "1"
+    },
+    {
+      "reason": "Model: Country of origin listed as India in rows, but product is stated to be handmade in Portugal in the Notes field. This conflict should be verified.",
+      "n": "1"
+    },
+    {
+      "reason": "Model: Origin conflict: Notes state 'Handmade in Portugal' but Country of Origin column states 'India'. The product is made in Portugal but sourced/imported from India.",
+      "n": "1"
+    },
+    {
+      "reason": "Copy says \"hand-poured\" but no source row supports it",
+      "n": "1"
+    },
+    {
+      "reason": "Missing price for SKU MUG-1014-BLA (row 43)\nModel: Row 43 (Black variant) has missing price information",
+      "n": "1"
+    },
+    {
+      "reason": "Missing price for SKU CUSH-1002-RUS-40X40C (row 31)\nModel: Row 31 (Rust 40x40 cm variant) has missing price information",
+      "n": "1"
+    },
+    {
+      "reason": "Missing price for SKU VASE-1009-CLE-S (row 51)\nModel: Row 51: Price is missing for VASE-1009-CLE-S variant.",
+      "n": "1"
+    },
+    {
+      "reason": "Model: Notes mention 'Organic cotton, GOTS certified' but product is described as 100% linen; may need clarification on material composition",
+      "n": "1"
+    },
+    {
+      "reason": "Low confidence: attributes.Origin (60)\nModel: Country of Origin is India but notes state handwoven in Vietnam; clarify manufacturing location.",
+      "n": "1"
+    }
+  ],
+  "translations": [
+    {
+      "locale": "de",
+      "status": "machine",
+      "n": "134"
+    },
+    {
+      "locale": "fr",
+      "status": "machine",
+      "n": "134"
+    }
+  ],
+  "sample": [
+    {
+      "title": "Haven Atelier Glazed Planter",
+      "category": "Home & Garden > Plants > Planters & Pots",
+      "description_html": "<p>Glazed stoneware planter from Germany in 20 cm size. Each glaze is unique and colour may vary slightly. Available in cream, sage, and navy finishes. Hand wash only; not dishwasher safe.</p>",
+      "claims": [
+        {
+          "text": "Each glaze is unique; colour may vary slightly",
+          "quote": "Each glaze is unique; colour may vary slightly.",
+          "source": "row 3, column Notes"
+        }
+      ],
+      "dropped_claims": [],
+      "confidence": {
+        "tags": 85,
+        "title": 95,
+        "category": 95,
+        "description": 90,
+        "attributes.Care": 100,
+        "attributes.Size": 100,
+        "attributes.Brand": 100,
+        "attributes.Material": 100,
+        "attributes.Dimensions": 100,
+        "attributes.Colours Available": 100,
+        "attributes.Country of Origin": 100
+      },
+      "status": "needs_review"
+    },
+    {
+      "title": "Alma Rowan Atelier Blumentopf",
+      "category": "Home & Garden > Plants > Planters & Pots",
+      "description_html": "<p>Terracotta planter with drainage hole, hand-finished. Available in small and medium sizes, in terracotta or white. Wipe with a damp cloth to clean.</p>",
+      "claims": [
+        {
+          "text": "Hand-finished with drainage hole",
+          "quote": "Von Hand veredelt. Mit Abzugsloch.",
+          "source": "row 4, column Notes"
+        }
+      ],
+      "dropped_claims": [],
+      "confidence": {
+        "tags": 85,
+        "title": 90,
+        "category": 95,
+        "description": 85,
+        "attributes.Care": 90,
+        "attributes.Brand": 100,
+        "attributes.Material": 100,
+        "attributes.Dimensions": 95,
+        "attributes.Sizes Available": 100,
+        "attributes.Colours Available": 100,
+        "attributes.Country of Origin": 100
+      },
+      "status": "done"
+    }
+  ]
+}

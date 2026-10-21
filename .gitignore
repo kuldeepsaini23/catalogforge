@@ -45,4 +45,11 @@ next-env.d.ts
 /data/
 /data-test/
 /fixtures/out/
-/load/results/
+/load/results/*
+# Measured results the README cites (logs and scratch runs stay local)
+!/load/results/scale-run.json
+!/load/results/k6-summary.json
+!/load/results/eval.md
+!/load/results/real-run-1.json
+!/load/results/real-run-sync.json
+!/load/results/real-run-batch.json
