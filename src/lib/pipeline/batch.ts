@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { parseBuildOutput } from "@/lib/ai/build";
 import { RateLimitedError } from "@/lib/ai/errors";
-import { getProvider } from "@/lib/ai/provider";
+import { getProvider, type BatchResult } from "@/lib/ai/provider";
 import { routeProduct } from "@/lib/ai/routing";
 import type { AiProductDraft } from "@/lib/ai/schema";
 import { getDb, schema } from "@/lib/db/client";
@@ -12,6 +12,8 @@ import { logAiCall } from "./build";
 import { maybeFinalize } from "./finalize";
 import { pauseImport, pausedUntil } from "./pause";
 import { writeBuiltProducts } from "./persist";
+
+const APPLY_CONCURRENCY = 6;
 
 function pollDelayMs(): number {
   return env().AI_PROVIDER === "mock" ? Math.max(500, Math.round(env().MOCK_BATCH_DELAY_MS / 2)) : 60_000;
@@ -103,9 +105,14 @@ export async function handleBatchPoll(data: JobData[typeof QUEUES.batchPoll]): P
 
   const fallback: Array<{ ids: string[]; route: "cheap" | "strong"; vision: boolean }> = [];
   const translated: string[] = [];
-  for await (const result of provider.batchResults(row.providerBatchId)) {
+  // Results are independent: apply them with bounded concurrency (each product write is its own
+  // idempotent transaction, and each request is marked applied right after it is written).
+  const results: BatchResult[] = [];
+  for await (const result of provider.batchResults(row.providerBatchId)) results.push(result);
+  let next = 0;
+  const applyOne = async (result: BatchResult) => {
     const req = row.requests[result.customId];
-    if (!req || req.applied) continue;
+    if (!req || req.applied) return;
     const products = await db
       .select({ id: schema.products.id, key: schema.products.stableKey, status: schema.products.status })
       .from(schema.products)
@@ -149,7 +156,12 @@ export async function handleBatchPoll(data: JobData[typeof QUEUES.batchPoll]): P
     await db.execute(sql`
       UPDATE ai_batches SET requests = jsonb_set(requests, ${`{${result.customId},applied}`}::text[], 'true'::jsonb), updated_at = now()
       WHERE id = ${row.id}`);
-  }
+    };
+  await Promise.all(
+    Array.from({ length: Math.min(APPLY_CONCURRENCY, results.length) }, async () => {
+      while (next < results.length) await applyOne(results[next++]);
+    }),
+  );
   for (const f of fallback) if (f.ids.length) await send(QUEUES.build, { importId: data.importId, productIds: f.ids, route: f.route, vision: f.vision });
   for (let i = 0; i < translated.length; i += 20) {
     await send(QUEUES.translate, { importId: data.importId, productIds: translated.slice(i, i + 20) });

@@ -73,6 +73,8 @@ async function main() {
   const seed = await waitDone(seedId, "seed import");
   const published = await publishReady();
   console.log(`published ${published} products`);
+  const warm = await api<{ products: number; ms: number }>("/api/storefront-warm", { method: "POST" });
+  console.log(`warmed storefront data cache: ${warm.products} products in ${warm.ms} ms`);
 
   console.log("2/3 starting the 10,000-row import and the k6 storefront load test together");
   const started = Date.now();

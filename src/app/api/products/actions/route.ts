@@ -1,11 +1,12 @@
 import { inArray } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { handleError } from "@/lib/api";
 import { getDb, schema } from "@/lib/db/client";
 import { requeueProducts } from "@/lib/pipeline/build";
 import { approveProducts, unpublishProducts } from "@/lib/publish";
 import { revalidateStorefront } from "@/lib/revalidate";
+import { warmStorefront } from "@/lib/storefront-warm";
 
 const ids = z.array(z.uuid()).min(1).max(1000);
 const bodySchema = z.discriminatedUnion("action", [
@@ -21,6 +22,8 @@ export async function POST(req: Request) {
     if (body.action === "approve") {
       const r = await approveProducts(body.ids);
       revalidateStorefront(r.handles, r.categories);
+      // Refill the cache for what was just published, after the response is sent.
+      after(() => warmStorefront(r.handles).catch((err) => console.error("storefront warm failed", err)));
       return NextResponse.json({ approved: r.published.length, skipped: r.skipped });
     }
     const rows = await getDb()
