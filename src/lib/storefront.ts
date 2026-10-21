@@ -117,3 +117,40 @@ export const ATTRIBUTE_LABELS: Record<Locale, Record<string, string>> = {
   de: { material: "Material", origin: "Herkunft", care: "Pflege", dimensions: "Maße", brand: "Marke" },
   fr: { material: "Matière", origin: "Origine", care: "Entretien", dimensions: "Dimensions", brand: "Marque" },
 };
+
+export const OPTION_LABELS: Record<Locale, Record<string, string>> = {
+  en: { colour: "Colour", size: "Size", material: "Material" },
+  de: { colour: "Farbe", size: "Größe", material: "Material" },
+  fr: { colour: "Couleur", size: "Taille", material: "Matière" },
+};
+
+/** Taxonomy leaf names for the shop chrome (DE/FR); unknown leaves fall back to English. */
+const CATEGORY_NAMES: Record<"de" | "fr", Record<string, string>> = {
+  de: {
+    "Planters & Pots": "Pflanzgefäße & Töpfe", "Plant Stands": "Pflanzenständer", "Watering Cans": "Gießkannen", "Garden Tools": "Gartenwerkzeug",
+    "Bird Feeders": "Vogelfutterhäuser", "Outdoor Lighting": "Außenbeleuchtung", Vases: "Vasen", "Candles & Holders": "Kerzen & Halter",
+    "Picture Frames": "Bilderrahmen", Mirrors: "Spiegel", "Baskets & Storage": "Körbe & Aufbewahrung", "Wall Art": "Wandbilder", Clocks: "Uhren",
+    "Table Lamps": "Tischleuchten", "Pendant Lights": "Pendelleuchten", "Cushions & Covers": "Kissen & Bezüge", "Throws & Blankets": "Plaids & Decken",
+    Rugs: "Teppiche", Curtains: "Vorhänge", "Bed Linen": "Bettwäsche", Towels: "Handtücher", Plates: "Teller", Bowls: "Schalen",
+    "Mugs & Cups": "Becher & Tassen", Glassware: "Gläser", Cutlery: "Besteck", "Serving Boards": "Servierbretter", "Jugs & Carafes": "Krüge & Karaffen",
+    Pans: "Pfannen", "Baking Dishes": "Auflaufformen", Utensils: "Küchenhelfer", "Storage Jars": "Vorratsgläser", Tablecloths: "Tischdecken",
+    Napkins: "Servietten", Chairs: "Stühle", Stools: "Hocker", "Side Tables": "Beistelltische", Shelves: "Regale", "Soap Dishes": "Seifenschalen",
+    "Bath Mats": "Badematten", Notebooks: "Notizbücher", "Desk Organisers": "Schreibtisch-Organizer",
+  },
+  fr: {
+    "Planters & Pots": "Jardinières & pots", "Plant Stands": "Porte-plantes", "Watering Cans": "Arrosoirs", "Garden Tools": "Outils de jardin",
+    "Bird Feeders": "Mangeoires", "Outdoor Lighting": "Éclairage extérieur", Vases: "Vases", "Candles & Holders": "Bougies & bougeoirs",
+    "Picture Frames": "Cadres", Mirrors: "Miroirs", "Baskets & Storage": "Paniers & rangement", "Wall Art": "Décoration murale", Clocks: "Horloges",
+    "Table Lamps": "Lampes à poser", "Pendant Lights": "Suspensions", "Cushions & Covers": "Coussins & housses", "Throws & Blankets": "Plaids & couvertures",
+    Rugs: "Tapis", Curtains: "Rideaux", "Bed Linen": "Linge de lit", Towels: "Serviettes", Plates: "Assiettes", Bowls: "Bols",
+    "Mugs & Cups": "Mugs & tasses", Glassware: "Verrerie", Cutlery: "Couverts", "Serving Boards": "Planches de service", "Jugs & Carafes": "Pichets & carafes",
+    Pans: "Poêles", "Baking Dishes": "Plats à four", Utensils: "Ustensiles", "Storage Jars": "Bocaux", Tablecloths: "Nappes",
+    Napkins: "Serviettes de table", Chairs: "Chaises", Stools: "Tabourets", "Side Tables": "Tables d'appoint", Shelves: "Étagères", "Soap Dishes": "Porte-savons",
+    "Bath Mats": "Tapis de bain", Notebooks: "Carnets", "Desk Organisers": "Organiseurs de bureau",
+  },
+};
+
+export function categoryName(category: string, locale: Locale): string {
+  const leaf = category.split(" > ").pop() ?? category;
+  return locale === "en" ? leaf : (CATEGORY_NAMES[locale][leaf] ?? leaf);
+}
