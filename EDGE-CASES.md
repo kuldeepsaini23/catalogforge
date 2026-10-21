@@ -29,6 +29,7 @@ Everything that can go wrong, what CatalogForge does about it, and whether it is
 | Missing price / `n/a` / `auf Anfrage` | No price is invented; variant gets `price_cents: null`, product → **Needs review** "Missing price for SKU X (row N)". Cannot be published until fixed. | ✅ `import.test.ts`, `claims.test.ts` |
 | Zero / negative price | Invalid → blocking issue → Needs review. DB check `price_cents > 0`. | ✅ `price.test.ts` |
 | Price without any currency anywhere in the sheet | Blocking "No currency for price". | 🟡 |
+| Bare number (`12.50`) in a multi-currency sheet | Takes the currency stated on the same product's other rows; if no row of that product states one and the sheet mixes currencies, the product is blocked for review instead of guessed. | ✅ `bun run eval` (currency 100 %) |
 | Mixed units: `2 lb 4 oz`, `1,2 kg`, `300 mm`, `12 x 8 in`, `Ø 25 cm` | Converted to integer grams / cm (0.1 cm), compound values summed; header hints like `Weight (kg)` apply to bare numbers. Bare number with no unit anywhere → flagged, not guessed. | ✅ `units-encoding.test.ts` |
 | Implausible weight (e.g. 250 kg for a mug) | Blocking "Weight … looks implausible" → Needs review. | ✅ `claims.test.ts` (assemble) |
 | Colour typos (`terracota`, `blakc`) | Matched to a known list with Damerau distance scaled to word length; every correction stored with row+column. Ambiguous ties are **not** corrected. Unknown colours are kept as-is and flagged (non-blocking). | ✅ `colour-html-language.test.ts` |
@@ -78,7 +79,8 @@ Everything that can go wrong, what CatalogForge does about it, and whether it is
 | Server/worker killed mid-import (kill -9) | Jobs heartbeat every 5 s; a dead worker's jobs are retried after ~10–20 s; every handler is idempotent (ON CONFLICT, built-hash checks, per-request `applied` flags). A sweeper re-enqueues anything left without a live job. | ✅ `crash-resume.test.ts` (killed twice) |
 | Crash between a DB commit and enqueuing the next job | Sweeper finds pending rows with no live job and re-enqueues. | ✅ covered by `crash-resume.test.ts` |
 | Counts must add up | Every row ends Done / Needs review / Failed; a DB **trigger refuses** `status = completed` unless stored rows = sheet rows and none are pending; completed rows can't go back to pending. | ✅ all integration tests call `reconcile()` |
-| Storefront under load during a 10k import | Storefront reads only the published snapshot through tagged `use cache` functions; data is warmed on publish. Numbers in README. | ✅ k6 |
+| Storefront under load during a 10k import | Storefront reads only the published snapshot through `use cache` functions; data is warmed on publish; 4 web processes with LISTEN/NOTIFY invalidation. p95 63–72 ms at 50 req/s during the import (README). | ✅ k6 |
+| Shopper hits a process whose cache is stale after an approve or edit | Writers NOTIFY; every process bumps the product's cache-key version. Checked by hand: 16/16 requests showed the edit immediately. | 🟡 (manual check) |
 
 ## 4. Later changes
 
@@ -89,7 +91,7 @@ Everything that can go wrong, what CatalogForge does about it, and whether it is
 | English changes after a manual translation | Manual text kept, marked **Out of date**, counted on Metrics, filterable on Products. If the English is changed back, it becomes manual again. | ✅ `translation-ai.test.ts` |
 | Only one field of English changes | Per-field source hashes: only that field is re-translated; identical text anywhere is served from the translation cache. | ✅ (plan) / 🟡 cache |
 | Merchant "sends back" a product with a note | Unpublished, rebuilt with the note in the prompt; manual edits kept. | 🟡 |
-| Merchant deletes a product | ❌ Not implemented in the UI. Products can be unpublished (send back). A delete would also need to stop a re-upload from recreating it (tombstone by stable key). | ❌ |
+| Merchant deletes a product | Unpublished and soft-deleted; the stable key stays as a tombstone, so re-uploading the same sheet doesn't recreate it. Its rows end as Failed ("deleted by the merchant"), and counts still add up. | ✅ `import.test.ts` |
 | SKU moves to a different product in a later sheet | Not reassigned silently: product → Needs review "SKU X already belongs to product Y". | 🟡 |
 
 ## 5. Storefront
@@ -105,9 +107,7 @@ Everything that can go wrong, what CatalogForge does about it, and whether it is
 
 ## Not handled yet (and what I'd do)
 
-- **Deleting products** (above).
 - **Multiple stores / auth**: single merchant. All tables would get a `store_id`, enforced by RLS.
 - **Image analysis beyond the model**: no Sharp resizing; photos over 3.75 MB are not sent to the vision model (still shown). I'd resize with Sharp before sending.
 - **Units for volume (ml, l)**: kept as text, not normalised.
-- **Live progress**: polling (1.5–2 s), not SSE/WebSockets.
 - **Duplicate provider batch after a crash during submission**: costs money, not correctness (see above).
