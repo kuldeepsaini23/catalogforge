@@ -43,7 +43,9 @@ bun run up                    # migrates, generates sample sheets, starts web + 
 
 Open **http://localhost:3000**. Sample files are in `fixtures/out/` (`sample-200.csv`/`.xlsx`, `supplier-5000`, `supplier-10000`, each with a photo ZIP).
 
-**Using Claude instead of the mock:** set `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY=…` in `.env` and restart. To go through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway/sdks-and-apis/anthropic-messages-api) instead, set `AI_GATEWAY_API_KEY=…`; the same Anthropic SDK is pointed at the gateway and model ids are mapped (`claude-haiku-4-5` → `anthropic/claude-haiku-4.5`). Batches are split per model and capped at 1,000 requests (a gateway rule); if the gateway refuses batches for the key, those products are built with normal calls instead. Models are configurable (`AI_MODEL_CHEAP=claude-haiku-4-5`, `AI_MODEL_STRONG=claude-sonnet-4-5`).
+**Using Claude instead of the mock:** set `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY=…` in `.env` and restart. To go through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway/sdks-and-apis/anthropic-messages-api) instead, set `AI_GATEWAY_API_KEY=…`; the same Anthropic SDK is pointed at the gateway and model ids are mapped (`claude-haiku-4-5` → `anthropic/claude-haiku-4.5`). Batches are split per model and capped at 1,000 requests (a gateway rule); if the gateway refuses batches for the key, those products are built with normal calls instead. `bun run real-run` (with `REAL_DATABASE_URL` pointing at a database it may wipe) imports the labelled 200-row sample with real models and scores it; it costs about $0.50.
+
+**Production:** set `ADMIN_PASSWORD` (the server refuses to start the dashboard without it) and optionally `AI_DAILY_BUDGET_USD`. The browser asks for the password once (any user name). Models are configurable (`AI_MODEL_CHEAP=claude-haiku-4-5`, `AI_MODEL_STRONG=claude-sonnet-4-5`).
 
 | Command | What it does |
 |---|---|
@@ -145,6 +147,29 @@ Both k6 thresholds (p95 < 500 ms, errors < 1 %) pass. The first attempt failed; 
 | **Cost per 1,000 products** (build + DE/FR translation) | **≈ $2.40** (baseline $11.31) |
 
 Routing sent 98 % of products to Haiku; Sonnet handled the 111 messy ones. Translation is now about 45 % of spend because it still runs synchronously (see Limitations).
+
+**Real models** (`bun run real-run`, Claude Haiku 4.5 + Sonnet 4.5 through Vercel AI Gateway; the 200-row labelled sample with 60 photos; own database). Raw output: `load/results/real-run-*.json`.
+
+| | Normal calls (8 workers) | Message Batches |
+|---|---:|---:|
+| Rows → products | 200 → 67 | 200 → 67 |
+| Import wall time | 47 s (**254 rows/min**) | 252 s (batch turnaround ≈ 4 min) |
+| + DE/FR translations | 74 s total | 312 s total |
+| Rows reconciled | 200 / 200, 0 failed | 200 / 200, 0 failed |
+| Grouping vs ground truth | 67 / 67, 0 split, 0 mixed | 67 / 67, 0 split, 0 mixed |
+| Products done / review | 56 / 11 | 46 / 21 |
+| Claims kept / true claims wrongly dropped | 120 / 0 | 119 / 0 |
+| Translations | 268 / 268 machine, 0 failed | 268 / 268, 0 failed |
+| AI cost | $0.45 (always-Sonnet baseline $1.27) | $0.31 (baseline $1.29) |
+| **Cost per 1,000 products** | **$6.65** | **$4.66** (76 % below baseline) |
+
+Every review reason in these runs was real: missing prices, conflicting duplicate rows, an unknown currency, origin conflicts the model noticed itself ("rows say *handmade in Portugal*, origin field says India"), and copy the model embellished ("Handmade vase", a "handmade" tag, "hand-poured", "handcrafted") with no support in the source. Real tokens cost about 2.5× the mock estimate (≈ 600 output tokens per product), and translation is now over half the spend because it still runs synchronously. Photos were uploaded but not sent: the router only uses vision when a product has photos and a description under 40 characters, and no product in this sample did.
+
+The first real run found four bugs the mock could not, all fixed with regression tests:
+- German translation batches hit `max_tokens` and were retried with the identical request. The budget was raised; truncated batches now split in halves, and the cost of truncated calls is recorded.
+- The claim checker dropped 6 true claims worded differently from its lexicon (*Veganes*, *Bleifreie*, *Fair-Trade-zertifiziert*, "Machine wash 60 °C"). Inflected forms now count, and review went from 21 to 11 products.
+- "handcrafted" and "hand-poured" weren't in the lexicon, so embellished copy using them passed.
+- 8 of 86 German titles came back untranslated; an unchanged title now gets one retry.
 
 **Reliability tests** (`bun run test:integration`, all against Postgres)
 
@@ -261,12 +286,12 @@ The second hardest part was grouping. Suppliers encode variants in SKUs inconsis
 **How did you make extraction accurate, and how did you stop invented claims?**
 By not asking the AI for anything code can compute. Prices, currencies, units, SKUs, variants, colours and grouping are deterministic and tested; the model only writes copy and classifications.
 
-For claims, the model must return a verbatim quote plus the exact row and column. Code then checks that the quote is in that cell, and that every strong claim term (with EN/DE/FR synonyms) appears in the quote with the same polarity. So "frost-resistant, not frost-proof" cannot become "frost-proof", "hand-finished" cannot become "handmade", and "occasional dishwasher use" cannot become "dishwasher-safe". Copy is also scanned for claims that slipped in outside the claims list. Anything dropped is shown to the merchant with the reason and keeps the product in review instead of letting it through as done. In the 10k run the verifier caught all 161 hallucinations the mock injected.
+For claims, the model must return a verbatim quote plus the exact row and column. Code then checks that the quote is in that cell, and that every strong claim term (with EN/DE/FR synonyms) appears in the quote with the same polarity. So "frost-resistant, not frost-proof" cannot become "frost-proof", "hand-finished" cannot become "handmade", and "occasional dishwasher use" cannot become "dishwasher-safe". Copy is also scanned for claims that slipped in outside the claims list. Anything dropped is shown to the merchant with the reason and keeps the product in review instead of letting it through as done. In the 10k run the verifier caught all 161 hallucinations the mock injected. With real models it kept every true claim (once German inflections were handled) and caught the model embellishing copy with "handmade", "hand-poured" and "handcrafted".
 
-**Measured numbers**
+**Measured numbers** (mock AI for scale, real models for accuracy and cost)
 - About 9,200 rows/minute on a 10,000-row import (65 s, Batches API mode, mock latency).
 - Storefront p95 of 63 ms (product) and 72 ms (collection) at 50 req/s during that import.
-- About $2.40 per 1,000 products at Haiku/Sonnet 4.5 prices (mock token estimates), 79 % below the always-Sonnet baseline.
+- Real models through Vercel AI Gateway: $4.66 per 1,000 products with the Batches API ($6.65 with normal calls), 76 % below the always-Sonnet baseline; 254 rows/minute with normal calls on 8 workers; 0 true claims wrongly dropped, all invented ones caught. (The mock's token estimate had said $2.40.)
 
 **What breaks first at 1,000,000 products in 8 languages, and how would you fix it?**
 1. **Translation volume and cost.** 1M products × 7 target languages × 2 fields = 14M translations, all synchronous today. Fix: the Batches API for translations (50 % off); translate only changed fields (already hashed); share the translation cache across products (already keyed by text, so identical care texts are paid once); translate low-traffic locales lazily.
@@ -308,7 +333,7 @@ Not done: a full `script-src` CSP (needs per-request nonces), per-IP rate limiti
 ## Limitations
 
 - Real Claude runs were not possible while building (no API key in the environment). The Anthropic provider is implemented, typed and request-shaped per the SDK docs, but **all numbers here come from the deterministic mock**, which estimates tokens from characters. The mock deliberately injects ~7 % hallucinations and supports fault and rate-limit injection.
-- The accuracy eval scores the **cleaner** against a synthetic labelled set I generated myself; real supplier files will be messier in different ways. AI output quality can only be measured with a real key (claim verification makes invented claims structurally impossible to publish, but not impossible for the model to attempt).
+- The accuracy eval scores the **cleaner** against a synthetic labelled set I generated myself; real supplier files will be messier in different ways. The real-model runs cover 200 labelled rows, not 10,000; the 10k numbers use the mock. The claim checker only knows a fixed vocabulary of claim terms, so a claim outside it ("BPA-free", "award-winning") reaches review only through the model's own confidence or a human.
 - `bun run serve` runs 4 web processes on one machine. Beyond that you'd run several hosts behind a CDN; the LISTEN/NOTIFY invalidation already works across hosts that share the database.
 - Translations run synchronously even in batch-mode imports; moving them to the Batches API would cut about a fifth of total spend.
 - Products re-built after publishing stay live with their last approved snapshot until re-approved (by design), and the dashboard shows them as "Live on storefront" next to their new status.
