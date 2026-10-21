@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { cacheLife, cacheTag } from "next/cache";
-import { COLLECTIONS_TAG } from "@/lib/revalidate";
 import Link from "next/link";
 import { ProductCard } from "@/components/store/product-card";
 import { categoryName, getCollections, getFeatured, STORE_COPY } from "@/lib/storefront";
@@ -12,17 +10,13 @@ export const metadata: Metadata = { title: "Storefront preview" };
 export default function StoreHome({ params }: PageProps<"/store/[country]">) {
   return (
     <Suspense fallback={<GridSkeleton />}>
-      {params.then(({ country }) => (
-        <Home country={country} />
-      ))}
+      <Home params={params} />
     </Suspense>
   );
 }
 
-async function Home({ country }: { country: string }) {
-  "use cache";
-  cacheLife("storefront");
-  cacheTag(COLLECTIONS_TAG);
+async function Home({ params }: { params: Promise<{ country: string }> }) {
+  const { country } = await params;
   const locale = languageForCountry(decodeURIComponent(country));
   const t = STORE_COPY[locale];
   const [collections, featured] = await Promise.all([getCollections(), getFeatured(8)]);

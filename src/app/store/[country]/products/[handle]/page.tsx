@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { cacheLife, cacheTag } from "next/cache";
-import { productTag } from "@/lib/revalidate";
 import Link from "next/link";
 import { LOCALE_TAG } from "@/components/store/product-card";
 import { money } from "@/lib/format";
@@ -14,18 +12,13 @@ export const metadata: Metadata = { title: "Product" };
 export default function ProductPage({ params }: PageProps<"/store/[country]/products/[handle]">) {
   return (
     <Suspense fallback={<div className="py-10 text-sm text-[#6b6b6e]">…</div>}>
-      {params.then(({ country, handle }) => (
-        <Product country={country} handle={handle} />
-      ))}
+      <Product params={params} />
     </Suspense>
   );
 }
 
-/** The rendered page is cached per (country, handle) and tagged, so a view replays it instead of re-rendering. */
-async function Product({ country, handle }: { country: string; handle: string }) {
-  "use cache";
-  cacheLife("storefront");
-  cacheTag(productTag(handle));
+async function Product({ params }: { params: Promise<{ country: string; handle: string }> }) {
+  const { country, handle } = await params;
   const locale = languageForCountry(decodeURIComponent(country));
   const t = STORE_COPY[locale];
   const product = await getProduct(handle);
