@@ -91,12 +91,17 @@ export async function createImport(sheet: UploadFile, photos: UploadFile[]): Pro
   const db = getDb();
   const fileHash = sha256Bytes(sheet.bytes);
   const running = await db
-    .select({ id: schema.imports.id })
+    .select({ id: schema.imports.id, status: schema.imports.status })
     .from(schema.imports)
     .where(and(eq(schema.imports.fileHash, fileHash), inArray(schema.imports.status, ["queued", "parsing", "building", "paused"])))
     .orderBy(desc(schema.imports.createdAt))
     .limit(1);
-  if (running[0]) return { id: running[0].id, deduplicated: true };
+  if (running[0]) {
+    // Still queued: its job may never have been sent (enqueue failed after the insert). Ingest is
+    // idempotent and the singleton key stops a second copy, so sending again is safe.
+    if (running[0].status === "queued") await send(QUEUES.ingest, { importId: running[0].id }, { singletonKey: `ingest:${running[0].id}` });
+    return { id: running[0].id, deduplicated: true };
+  }
 
   const id = crypto.randomUUID();
   const dir = path.join("imports", id, "upload");
