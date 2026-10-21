@@ -10,7 +10,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const K6_DURATION = process.env.K6_DURATION ?? "90s";
+const K6_DURATION = process.env.K6_DURATION ?? "150s";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, init);
@@ -59,9 +59,9 @@ async function publishReady(): Promise<number> {
   }
 }
 
-function runK6(): Promise<number> {
+function runK6(duration = K6_DURATION, summary = "load/results/k6-summary.json"): Promise<number> {
   return new Promise((resolve) => {
-    const child = spawn("k6", ["run", "--quiet", "-e", `BASE_URL=${BASE}`, "-e", `DURATION=${K6_DURATION}`, "load/storefront.js"], { stdio: "inherit" });
+    const child = spawn("k6", ["run", "--quiet", "-e", `BASE_URL=${BASE}`, "-e", `DURATION=${duration}`, "-e", `SUMMARY_FILE=${summary}`, "load/storefront.js"], { stdio: "inherit" });
     child.on("exit", (code) => resolve(code ?? 1));
   });
 }
@@ -76,6 +76,8 @@ async function main() {
   const warm = await api<{ products: number; ms: number }>("/api/storefront-warm", { method: "POST" });
   console.log(`warmed storefront data cache: ${warm.products} products in ${warm.ms} ms`);
 
+  console.log("warming the server (15 s k6 pass, not measured)");
+  await runK6("15s", "load/results/k6-warmup.json");
   console.log("2/3 starting the 10,000-row import and the k6 storefront load test together");
   const started = Date.now();
   const bigId = await upload("fixtures/out/supplier-10000.csv", "fixtures/out/supplier-10000-photos.zip");
