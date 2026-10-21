@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { LOCALE_TAG } from "@/components/store/product-card";
 import { money } from "@/lib/format";
-import { ATTRIBUTE_LABELS, categoryName, getProduct, localized, OPTION_LABELS, STORE_COPY } from "@/lib/storefront";
+import { ATTRIBUTE_LABELS, categoryName, getProduct, localOptionValue, localized, OPTION_LABELS, STORE_COPY } from "@/lib/storefront";
 import { slugify } from "@/lib/cleaning/text";
 import { languageForCountry } from "@/lib/translate/locales";
 
@@ -68,7 +68,7 @@ async function Product({ params }: { params: Promise<{ country: string; handle: 
                 <legend className="text-sm font-medium">{OPTION_LABELS[locale][name] ?? name}</legend>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {[...new Set(product.data.variants.map((v) => v.options[name]).filter(Boolean))].map((value) => (
-                    <span key={value} className="rounded-full border border-[#e5e5e5] px-3.5 py-1.5 text-sm">{value}</span>
+                    <span key={value} className="rounded-full border border-[#e5e5e5] px-3.5 py-1.5 text-sm">{localOptionValue(locale, name, value)}</span>
                   ))}
                 </div>
               </fieldset>
@@ -88,7 +88,7 @@ async function Product({ params }: { params: Promise<{ country: string; handle: 
             <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
               {Object.entries(product.data.attributes).map(([k, v]) => (
                 <div key={k} className="contents">
-                  <dt className="text-[#6b6b6e]">{labels[k] ?? k}</dt>
+                  <dt className="text-[#6b6b6e] first-letter:uppercase">{labels[k] ?? k.replace(/_/g, " ")}</dt>
                   <dd>{v}</dd>
                 </div>
               ))}
@@ -101,7 +101,7 @@ async function Product({ params }: { params: Promise<{ country: string; handle: 
           <ul className="mt-3 divide-y divide-[#e5e5e5] text-sm">
             {product.data.variants.map((v) => (
               <li key={v.sku} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                <span>{Object.values(v.options).join(" / ") || "—"}</span>
+                <span>{Object.entries(v.options).map(([name, value]) => localOptionValue(locale, name, value)).join(" / ") || "—"}</span>
                 <span className="text-[#6b6b6e]">{t.sku} {v.sku}</span>
                 <span className="tabular-nums">{v.priceCents === null ? t.unavailable : money(v.priceCents, v.currency, LOCALE_TAG[locale])}</span>
               </li>

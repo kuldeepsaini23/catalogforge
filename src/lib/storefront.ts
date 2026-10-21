@@ -134,10 +134,33 @@ export const STORE_COPY: Record<Locale, Record<string, string>> = {
 };
 
 export const ATTRIBUTE_LABELS: Record<Locale, Record<string, string>> = {
-  en: { material: "Material", origin: "Origin", care: "Care", dimensions: "Dimensions", brand: "Brand" },
-  de: { material: "Material", origin: "Herkunft", care: "Pflege", dimensions: "Maße", brand: "Marke" },
-  fr: { material: "Matière", origin: "Origine", care: "Entretien", dimensions: "Dimensions", brand: "Marque" },
+  en: { material: "Material", origin: "Origin", country_of_origin: "Origin", care: "Care", dimensions: "Dimensions", brand: "Brand", size: "Size", sizes: "Sizes", colours: "Colours", capacity: "Capacity", weight: "Weight" },
+  de: { material: "Material", origin: "Herkunft", country_of_origin: "Herkunft", care: "Pflege", dimensions: "Maße", brand: "Marke", size: "Größe", sizes: "Größen", colours: "Farben", capacity: "Fassungsvermögen", weight: "Gewicht" },
+  fr: { material: "Matière", origin: "Origine", country_of_origin: "Origine", care: "Entretien", dimensions: "Dimensions", brand: "Marque", size: "Taille", sizes: "Tailles", colours: "Couleurs", capacity: "Contenance", weight: "Poids" },
 };
+
+/** Canonical colour names (see cleaning/colour.ts) in German and French, for option values. */
+export const COLOUR_NAMES: Record<string, [de: string, fr: string]> = {
+  black: ["Schwarz", "Noir"], white: ["Weiß", "Blanc"], ivory: ["Elfenbein", "Ivoire"], cream: ["Creme", "Crème"],
+  grey: ["Grau", "Gris"], anthracite: ["Anthrazit", "Anthracite"], silver: ["Silber", "Argent"], red: ["Rot", "Rouge"],
+  burgundy: ["Bordeaux", "Bordeaux"], pink: ["Rosa", "Rose"], orange: ["Orange", "Orange"], terracotta: ["Terrakotta", "Terre cuite"],
+  rust: ["Rost", "Rouille"], yellow: ["Gelb", "Jaune"], mustard: ["Senfgelb", "Moutarde"], gold: ["Gold", "Doré"],
+  amber: ["Bernstein", "Ambre"], green: ["Grün", "Vert"], olive: ["Oliv", "Olive"], sage: ["Salbei", "Sauge"],
+  "forest green": ["Tannengrün", "Vert forêt"], mint: ["Mint", "Menthe"], teal: ["Petrol", "Bleu canard"], blue: ["Blau", "Bleu"],
+  navy: ["Marineblau", "Bleu marine"], "sky blue": ["Hellblau", "Bleu ciel"], purple: ["Lila", "Violet"], lavender: ["Lavendel", "Lavande"],
+  brown: ["Braun", "Marron"], beige: ["Beige", "Beige"], taupe: ["Taupe", "Taupe"], natural: ["Natur", "Naturel"],
+  oak: ["Eiche", "Chêne"], walnut: ["Nussbaum", "Noyer"], copper: ["Kupfer", "Cuivre"], brass: ["Messing", "Laiton"],
+  clear: ["Klar", "Transparent"], multicolour: ["Mehrfarbig", "Multicolore"],
+};
+
+/** Shows a variant option value in the shopper's language (colours only; sizes are numbers). */
+export function localOptionValue(locale: Locale, name: string, value: string): string {
+  if (locale === "en" || name !== "colour") return value;
+  return value
+    .split(" / ")
+    .map((part) => COLOUR_NAMES[part.toLowerCase()]?.[locale === "de" ? 0 : 1] ?? part)
+    .join(" / ");
+}
 
 export const OPTION_LABELS: Record<Locale, Record<string, string>> = {
   en: { colour: "Colour", size: "Size", material: "Material" },

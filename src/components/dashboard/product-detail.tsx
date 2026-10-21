@@ -153,7 +153,8 @@ export function ProductDetailView({ id }: { id: string }) {
     }
   };
 
-  const reasons = p.reviewReason ? p.reviewReason.split("; ") : [];
+  // One reason per line (reasons themselves may contain semicolons).
+  const reasons = p.reviewReason ? p.reviewReason.split("\n") : [];
   const columns = [...new Set(data.rows.flatMap((r) => Object.keys(r.raw)))];
 
   return (
@@ -266,7 +267,7 @@ export function ProductDetailView({ id }: { id: string }) {
                   <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
                     {Object.entries(p.attributes).map(([k, v]) => (
                       <div key={k} className="contents">
-                        <dt className="text-slate capitalize">{k}</dt>
+                        <dt className="text-slate first-letter:uppercase">{k.replace(/_/g, " ")}</dt>
                         <dd>{v}</dd>
                       </div>
                     ))}

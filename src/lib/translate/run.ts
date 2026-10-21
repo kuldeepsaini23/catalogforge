@@ -205,6 +205,12 @@ async function translateGroup(
     for (const item of remaining) {
       const text = byId.get(item.id);
       const problems = text === undefined ? ["missing from response"] : verifyTranslation(item.text, text, item.keep);
+      // Real models sometimes return a title untouched, treating it all as a name. Ask once to
+      // translate the generic words; if it comes back identical again, it is accepted (some
+      // titles really are the same, e.g. "Vase" in German).
+      if (problems.length === 0 && attempt === 0 && item.field === "title" && text!.trim() === item.text.trim() && /\s/.test(item.text.trim())) {
+        problems.push("returned unchanged: translate the product-type words (e.g. \"Ceramic Bowl\") and keep only proper names as they are");
+      }
       if (problems.length === 0) {
         // Same allowlist as the English copy: the guards compare tags, the sanitizer strips attributes.
         const clean = item.field === "descriptionHtml" ? sanitizeOutputHtml(text!) : text!;

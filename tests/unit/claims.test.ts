@@ -40,6 +40,7 @@ describe("findTerms", () => {
     ["Handgefertigte Vase aus Portugal.", "handmade"],
     ["Bougie végane.", "vegan"],
     ["Handcrafted from natural rattan.", "handmade"],
+    ["Hand-poured soy candle.", "hand-poured"],
   ])("recognises inflected and alternate wording: %s", (text, term) => {
     expect(findTerms(text)).toContainEqual({ term, negated: false });
   });

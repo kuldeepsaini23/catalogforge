@@ -17,6 +17,7 @@ export const CLAIM_TERMS: Record<string, string[]> = {
   organic: ["organic", "bio", "öko", "oko", "biologique", "kbA"],
   handmade: ["handmade", "hand-made", "hand made", "handcrafted", "hand-crafted", "handgemacht", "handgefertigt", "handgearbeitet", "fait main", "fait à la main", "artisanal"],
   "hand-finished": ["hand-finished", "hand finished", "von hand veredelt", "handveredelt", "fini à la main"],
+  "hand-poured": ["hand-poured", "hand poured", "handgegossen", "von hand gegossen", "coulé à la main", "coulée à la main"],
   "hand-painted": ["hand-painted", "hand painted", "handbemalt", "peint à la main"],
   recycled: ["recycled", "recycelt", "recyceltem", "recyclé"],
   vegan: ["vegan", "végan", "végane"],

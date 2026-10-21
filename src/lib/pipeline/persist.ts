@@ -102,7 +102,7 @@ export async function writeBuiltProducts(importId: string, drafts: Map<string, {
         .set({
           handle,
           status,
-          reviewReason: reasons.length ? [...new Set(reasons)].join("; ").slice(0, 2000) : null,
+          reviewReason: reasons.length ? [...new Set(reasons)].join("\n").slice(0, 2000) : null,
           title,
           descriptionHtml,
           category: keep("category", result.product.category, p.category ?? result.product.category),

@@ -95,7 +95,7 @@ export function assembleProduct(
     claims: kept.map(({ text, source }) => ({ text, source })),
     confidence,
     status: uniqueReasons.length ? "needs_review" : "done",
-    review_reason: uniqueReasons.length ? uniqueReasons.join("; ").slice(0, 2000) : null,
+    review_reason: uniqueReasons.length ? uniqueReasons.join("\n").slice(0, 2000) : null,
     source_rows: [...new Set(input.rows.map((r) => r.row))].sort((a, b) => a - b),
   });
 
