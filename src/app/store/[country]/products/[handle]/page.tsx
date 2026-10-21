@@ -5,9 +5,30 @@ import { LOCALE_TAG } from "@/components/store/product-card";
 import { money } from "@/lib/format";
 import { ATTRIBUTE_LABELS, categoryName, getProduct, localOptionValue, localized, OPTION_LABELS, STORE_COPY } from "@/lib/storefront";
 import { slugify } from "@/lib/cleaning/text";
+import { hreflangAlternates, seoFields } from "@/lib/seo";
 import { languageForCountry } from "@/lib/translate/locales";
 
-export const metadata: Metadata = { title: "Product" };
+/** SEO fields per language: meta title/description from the localized copy, plus hreflang links. */
+export async function generateMetadata({ params }: PageProps<"/store/[country]/products/[handle]">): Promise<Metadata> {
+  const { country, handle } = await params;
+  const locale = languageForCountry(decodeURIComponent(country));
+  const product = await getProduct(handle);
+  if (!product) return { title: STORE_COPY[locale].notFound, robots: { index: false } };
+  const copy = localized(product, locale);
+  const seo = seoFields(copy.title, copy.descriptionHtml, product.data.attributes.brand);
+  const path = `/products/${handle}`;
+  return {
+    title: seo.metaTitle,
+    description: seo.metaDescription,
+    alternates: { canonical: `/store/${country}${path}`, languages: hreflangAlternates(path) },
+    openGraph: {
+      title: seo.metaTitle,
+      description: seo.metaDescription,
+      locale: LOCALE_TAG[locale].replace("-", "_"),
+      ...(product.data.photos[0] ? { images: [`/api/photos/${product.data.photos[0]}`] } : {}),
+    },
+  };
+}
 
 export default function ProductPage({ params }: PageProps<"/store/[country]/products/[handle]">) {
   return (
@@ -86,7 +107,7 @@ async function Product({ params }: { params: Promise<{ country: string; handle: 
           <section className="mt-6 border-t border-[#e5e5e5] pt-6">
             <h2 className="font-[family-name:var(--font-store-heading)] text-lg font-semibold">{t.details}</h2>
             <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
-              {Object.entries(product.data.attributes).map(([k, v]) => (
+              {Object.entries(copy.attributes ?? product.data.attributes).map(([k, v]) => (
                 <div key={k} className="contents">
                   <dt className="text-[#6b6b6e] first-letter:uppercase">{labels[k] ?? k.replace(/_/g, " ")}</dt>
                   <dd>{v}</dd>

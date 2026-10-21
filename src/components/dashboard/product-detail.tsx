@@ -49,6 +49,7 @@ interface Detail {
   translations: Array<{ locale: string; field: string; text: string; status: string; error: string | null }>;
   rows: Array<{ rowNumber: number; raw: Record<string, string>; language: string; status: string }>;
   published: { handle: string; publishedAt: string } | null;
+  seo: Record<string, { metaTitle: string; metaDescription: string }>;
 }
 
 interface Draft {
@@ -356,6 +357,7 @@ export function ProductDetailView({ id }: { id: string }) {
           </Card>
 
           <Translations data={data} productId={id} onSaved={setData} />
+          <SeoPreview seo={data.seo} handle={p.handle} />
         </div>
 
         {/* Source data */}
@@ -567,6 +569,12 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 const TR_STATUS: Record<string, string> = { machine: "AI translated", manual: "Edited by you", out_of_date: "Out of date", failed: "Failed, showing English" };
+const TR_FIELDS = [
+  { field: "title", label: "Title", rows: 2 },
+  { field: "descriptionHtml", label: "Description", rows: 6 },
+  { field: "tags", label: "Tags, one per line", rows: 5 },
+  { field: "attributes", label: "Attribute values, one per line", rows: 5 },
+] as const;
 
 function Translations({ data, productId, onSaved }: { data: Detail; productId: string; onSaved: (d: Detail) => void }) {
   const [editing, setEditing] = useState<{ locale: string; field: string; text: string } | null>(null);
@@ -597,13 +605,16 @@ function Translations({ data, productId, onSaved }: { data: Detail; productId: s
         </TabsList>
         {(["de", "fr"] as const).map((locale) => (
           <TabsContent key={locale} value={locale} className="mt-3 grid gap-4">
-            {(["title", "descriptionHtml"] as const).map((field) => {
+            {TR_FIELDS.map(({ field, label, rows }) => {
               const t = find(locale, field);
+              const attrKeys = Object.keys(data.product.attributes);
+              if (field === "tags" && data.product.tags.length === 0) return null;
+              if (field === "attributes" && attrKeys.length === 0) return null;
               const isEditing = editing?.locale === locale && editing.field === field;
               return (
                 <div key={field} className="grid gap-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{field === "title" ? "Title" : "Description"}</span>
+                    <span className="text-sm font-medium">{label}</span>
                     {t ? (
                       <Chip tone={t.status === "machine" ? "info" : t.status === "manual" ? "violet" : t.status === "out_of_date" ? "attention" : "danger"}>{TR_STATUS[t.status]}</Chip>
                     ) : (
@@ -617,7 +628,8 @@ function Translations({ data, productId, onSaved }: { data: Detail; productId: s
                   </div>
                   {isEditing ? (
                     <div className="grid gap-2">
-                      <Textarea rows={field === "title" ? 2 : 6} value={editing.text} onChange={(e) => setEditing({ ...editing, text: e.target.value })} className={field === "descriptionHtml" ? "font-mono text-xs" : undefined} />
+                      {field === "attributes" && <p className="text-xs text-slate">In this order: {attrKeys.map((k) => k.replace(/_/g, " ")).join(", ")}</p>}
+                      <Textarea rows={rows} value={editing.text} onChange={(e) => setEditing({ ...editing, text: e.target.value })} className={field === "descriptionHtml" ? "font-mono text-xs" : undefined} />
                       <div className="flex justify-end gap-2">
                         <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
                         <Button size="sm" onClick={save} disabled={saving || !editing.text.trim()}>Save translation</Button>
@@ -625,6 +637,17 @@ function Translations({ data, productId, onSaved }: { data: Detail; productId: s
                     </div>
                   ) : field === "title" ? (
                     <p className="text-sm">{t?.text ?? "—"}</p>
+                  ) : field === "tags" ? (
+                    <div className="flex flex-wrap gap-1.5">{t ? t.text.split("\n").filter(Boolean).map((tag) => <Chip key={tag} tone="neutral" dot={false}>{tag}</Chip>) : "—"}</div>
+                  ) : field === "attributes" ? (
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                      {attrKeys.map((k, i) => (
+                        <div key={k} className="contents">
+                          <dt className="text-slate first-letter:uppercase">{k.replace(/_/g, " ")}</dt>
+                          <dd>{t?.text.split("\n")[i] ?? "—"}</dd>
+                        </div>
+                      ))}
+                    </dl>
                   ) : (
                     <div className="text-sm [&_li]:ml-4 [&_li]:list-disc [&_p]:mb-2" dangerouslySetInnerHTML={{ __html: t?.text ?? "—" }} />
                   )}
@@ -636,6 +659,29 @@ function Translations({ data, productId, onSaved }: { data: Detail; productId: s
           </TabsContent>
         ))}
       </Tabs>
+    </Card>
+  );
+}
+
+/** How the product will look in search results, per language (the storefront's meta tags). */
+function SeoPreview({ seo, handle }: { seo: Detail["seo"]; handle: string }) {
+  const country: Record<string, string> = { en: "US", de: "DE", fr: "FR" };
+  return (
+    <Card className="p-5">
+      <h2 className="font-semibold">Search preview</h2>
+      <p className="mt-1 text-sm text-slate">Meta title and description per language, generated from the reviewed copy (no extra AI call).</p>
+      <div className="mt-4 grid gap-4">
+        {Object.entries(seo).map(([locale, s]) => (
+          <div key={locale} className="grid gap-0.5 text-sm">
+            <span className="flex gap-2 text-xs text-slate">
+              <span className="font-medium text-ink">{locale.toUpperCase()}</span>
+              <span>/store/{country[locale]}/products/{handle}</span>
+            </span>
+            <span className="text-base text-link">{s.metaTitle}</span>
+            <span className="text-slate">{s.metaDescription}</span>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }

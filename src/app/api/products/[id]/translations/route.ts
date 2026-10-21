@@ -1,3 +1,5 @@
+import { sourceText } from "@/lib/translate/fields";
+import { TRANSLATED_FIELDS } from "@/lib/translate/locales";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -11,7 +13,7 @@ import { revalidateStorefront } from "@/lib/revalidate";
 
 const bodySchema = z.object({
   locale: z.enum(["de", "fr"]),
-  field: z.enum(["title", "descriptionHtml"]),
+  field: z.enum(TRANSLATED_FIELDS),
   text: z.string().trim().min(1).max(10_000),
 });
 
@@ -23,7 +25,7 @@ export async function PUT(req: Request, ctx: RouteContext<"/api/products/[id]/tr
     const db = getDb();
     const product = await db.query.products.findFirst({ where: eq(schema.products.id, id) });
     if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    const english = (body.field === "title" ? product.title : product.descriptionHtml) ?? "";
+    const english = sourceText(product, body.field);
     const text = body.field === "descriptionHtml" ? sanitizeOutputHtml(body.text) : body.text;
     const sourceHash = sha256(english);
     await db

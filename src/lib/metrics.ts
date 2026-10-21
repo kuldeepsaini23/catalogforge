@@ -9,7 +9,7 @@ export async function getMetrics() {
   const db = getDb();
   const strong = env().AI_MODEL_STRONG;
 
-  const [statusRes, rowRes, callGroups, timeRes, speedRes, slowRes, coverageRes, claimRes, outcomeRes, importRes] = await Promise.all([
+  const [statusRes, rowRes, callGroups, timeRes, speedRes, slowRes, coverageRes, claimRes, outcomeRes, importRes, expectedRes] = await Promise.all([
     db.execute<{ status: string; n: string }>(sql`SELECT status, count(*) AS n FROM products WHERE deleted_at IS NULL GROUP BY status`),
     db.execute<{ status: string; n: string }>(sql`SELECT status, count(*) AS n FROM source_rows GROUP BY status`),
     db.execute<{ model: string; mode: string; kind: string; calls: string; products: string; vision: string; input: string; output: string; cache_read: string; cache_write: string; cost: string; baseline: string }>(sql`
@@ -39,6 +39,11 @@ export async function getMetrics() {
       SELECT i.id, i.file_name, i.total_rows, extract(epoch FROM (coalesce(i.finished_at, now()) - i.started_at)) AS seconds, i.status, i.mode,
         (SELECT sum(cost_nanos) FROM ai_calls c WHERE c.import_id = i.id) AS cost
       FROM imports i WHERE i.started_at IS NOT NULL ORDER BY i.created_at DESC LIMIT 10`),
+    // Translatable texts per language: title, description, tags and attribute values, when present.
+    db.execute<{ n: string }>(sql`
+      SELECT coalesce(sum((coalesce(title, '') <> '')::int + (coalesce(description_html, '') <> '')::int
+        + (cardinality(tags) > 0)::int + (attributes <> '{}'::jsonb)::int), 0) AS n
+      FROM products WHERE deleted_at IS NULL AND status NOT IN ('failed', 'pending')`),
   ]);
 
   const products = { pending: 0, done: 0, needs_review: 0, failed: 0, approved: 0 };
@@ -81,8 +86,8 @@ export async function getMetrics() {
   });
 
   const coverage: Record<string, { translated: number; manual: number; outOfDate: number; failed: number; expected: number }> = {};
-  const nonFailed = totalProducts - products.failed - products.pending;
-  for (const locale of ["de", "fr"]) coverage[locale] = { translated: 0, manual: 0, outOfDate: 0, failed: 0, expected: nonFailed * 2 };
+  const expected = num(expectedRes.rows[0]?.n);
+  for (const locale of ["de", "fr"]) coverage[locale] = { translated: 0, manual: 0, outOfDate: 0, failed: 0, expected };
   for (const r of coverageRes.rows) {
     const c = coverage[r.locale];
     if (!c) continue;

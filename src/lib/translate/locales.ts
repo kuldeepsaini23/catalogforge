@@ -34,5 +34,5 @@ export const COUNTRIES: Array<{ code: string; label: string }> = [
   { code: "NL", label: "Nederland" },
 ];
 
-export const TRANSLATED_FIELDS = ["title", "descriptionHtml"] as const;
+export const TRANSLATED_FIELDS = ["title", "descriptionHtml", "tags", "attributes"] as const;
 export type TranslatedField = (typeof TRANSLATED_FIELDS)[number];

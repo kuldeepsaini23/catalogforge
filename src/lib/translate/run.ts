@@ -11,6 +11,7 @@ import { pauseImport, pausedUntil } from "@/lib/pipeline/pause";
 import { refreshPublished } from "@/lib/publish";
 import { QUEUES, send, type JobData } from "@/lib/queue";
 import { verifyTranslation } from "./guards";
+import { LIST_FIELDS, lineCount, sourceText } from "./fields";
 import { TARGET_LOCALES, TRANSLATED_FIELDS, type TargetLocale, type TranslatedField } from "./locales";
 
 export const cacheKey = (locale: string, text: string) => sha256(`${locale}\n${text}`);
@@ -86,7 +87,7 @@ export async function handleTranslate(data: JobData[typeof QUEUES.translate]): P
     for (const p of products) {
       const keep = [p.attributes.brand, p.input?.facts.brand].filter((x): x is string => Boolean(x));
       for (const field of TRANSLATED_FIELDS) {
-        const text = (field === "title" ? p.title : p.descriptionHtml) ?? "";
+        const text = sourceText(p, field);
         if (!text) continue;
         const sourceHash = sha256(text);
         const ex = existing.get(`${p.id}:${locale}:${field}`);
@@ -205,6 +206,9 @@ async function translateGroup(
     for (const item of remaining) {
       const text = byId.get(item.id);
       const problems = text === undefined ? ["missing from response"] : verifyTranslation(item.text, text, item.keep);
+      if (text !== undefined && LIST_FIELDS.has(item.field) && lineCount(text) !== lineCount(item.text)) {
+        problems.push(`this is a list: return exactly ${lineCount(item.text)} lines, one translation per line, same order`);
+      }
       // Real models sometimes return a title untouched, treating it all as a name. Ask once to
       // translate the generic words; if it comes back identical again, it is accepted (some
       // titles really are the same, e.g. "Vase" in German).

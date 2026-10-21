@@ -270,6 +270,8 @@ export interface StorefrontLocaleData {
   title: string;
   descriptionHtml: string;
   tags: string[];
+  /** Translated attribute values (same keys as `StorefrontData.attributes`); absent in older snapshots. */
+  attributes?: Record<string, string>;
 }
 
 export interface StorefrontData {

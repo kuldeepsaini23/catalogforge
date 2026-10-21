@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Archivo, Figtree } from "next/font/google";
 import Link from "next/link";
@@ -6,6 +7,9 @@ import { COUNTRIES } from "@/lib/translate/locales";
 
 const archivo = Archivo({ variable: "--font-store-heading", subsets: ["latin", "latin-ext"] });
 const figtree = Figtree({ variable: "--font-store-body", subsets: ["latin", "latin-ext"] });
+
+// Shop pages carry their own titles, not the dashboard's "· CatalogForge" suffix.
+export const metadata: Metadata = { title: { default: "Shop", template: "%s" } };
 
 export function generateStaticParams() {
   return COUNTRIES.map((c) => ({ country: c.code }));

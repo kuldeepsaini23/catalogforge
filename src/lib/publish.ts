@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { getDb, getPool, schema } from "@/lib/db/client";
 import { notifyStorefront } from "@/lib/storefront-sync";
 import type { StorefrontData } from "@/lib/db/schema";
+import { translatedAttributes, translatedTags } from "@/lib/translate/fields";
 import { TARGET_LOCALES } from "@/lib/translate/locales";
 
 /**
@@ -20,10 +21,17 @@ async function snapshot(productIds: string[]) {
   return products.map((p) => {
     const tr = (locale: string, field: string) =>
       translations.find((t) => t.productId === p.id && t.locale === locale && t.field === field && t.status !== "failed")?.text;
-    const en = { title: p.title ?? p.handle, descriptionHtml: p.descriptionHtml ?? "", tags: p.tags };
+    const en = { title: p.title ?? p.handle, descriptionHtml: p.descriptionHtml ?? "", tags: p.tags, attributes: p.attributes };
     const locales: StorefrontData["locales"] = { en };
     for (const l of TARGET_LOCALES) {
-      locales[l] = { title: tr(l, "title") ?? en.title, descriptionHtml: tr(l, "descriptionHtml") ?? en.descriptionHtml, tags: p.tags };
+      const tags = tr(l, "tags");
+      const attributes = tr(l, "attributes");
+      locales[l] = {
+        title: tr(l, "title") ?? en.title,
+        descriptionHtml: tr(l, "descriptionHtml") ?? en.descriptionHtml,
+        tags: tags ? translatedTags(tags) : p.tags,
+        attributes: attributes ? translatedAttributes(p.attributes, attributes) : p.attributes,
+      };
     }
     const vs = variants.filter((v) => v.productId === p.id).sort((a, b) => a.position - b.position);
     const prices = vs.map((v) => v.priceCents).filter((c): c is number => c !== null);

@@ -8,6 +8,8 @@ const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin
 const mono = Geist_Mono({ variable: "--font-mono-code", subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  // Absolute URLs for canonical, hreflang and Open Graph links.
+  metadataBase: new URL(process.env.PUBLIC_BASE_URL || "http://localhost:3000"),
   title: { default: "CatalogForge", template: "%s · CatalogForge" },
   description: "Turn messy supplier sheets and photos into a clean, multi-language product catalog.",
 };

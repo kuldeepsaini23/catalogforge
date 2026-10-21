@@ -4,9 +4,22 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/store/product-card";
 import { categoryName, getCollection, STORE_COPY } from "@/lib/storefront";
+import { hreflangAlternates } from "@/lib/seo";
 import { languageForCountry } from "@/lib/translate/locales";
 
-export const metadata: Metadata = { title: "Collection" };
+export async function generateMetadata({ params }: PageProps<"/store/[country]/collections/[slug]">): Promise<Metadata> {
+  const { country, slug } = await params;
+  const locale = languageForCountry(decodeURIComponent(country));
+  const result = await getCollection(slug);
+  if (!result) return { title: STORE_COPY[locale].notFound, robots: { index: false } };
+  const name = categoryName(result.collection.category, locale);
+  const path = `/collections/${slug}`;
+  return {
+    title: name,
+    description: `${name}: ${result.collection.count} ${STORE_COPY[locale].products}`,
+    alternates: { canonical: `/store/${country}${path}`, languages: hreflangAlternates(path) },
+  };
+}
 
 export default function CollectionPage({ params }: PageProps<"/store/[country]/collections/[slug]">) {
   return (

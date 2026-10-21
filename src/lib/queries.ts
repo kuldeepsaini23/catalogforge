@@ -1,3 +1,5 @@
+import { seoFields } from "@/lib/seo";
+import { LOCALES } from "@/lib/translate/locales";
 import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
 import { rowCounts } from "@/lib/pipeline/rows";
@@ -160,7 +162,17 @@ export async function productDetail(id: string) {
       : Promise.resolve([]),
   ]);
   const published = await db.select({ handle: schema.storefrontProducts.handle, publishedAt: schema.storefrontProducts.publishedAt }).from(schema.storefrontProducts).where(eq(schema.storefrontProducts.productId, id));
-  return { product, variants, photos, translations, rows, published: published[0] ?? null };
+  // Search-result preview per language, built like the storefront's meta tags.
+  const text = (locale: string, field: string, fallback: string) =>
+    translations.find((t) => t.locale === locale && t.field === field && t.status !== "failed")?.text ?? fallback;
+  const seo = Object.fromEntries(
+    LOCALES.map((l) => {
+      const title = l === "en" ? (product.title ?? product.handle) : text(l, "title", product.title ?? product.handle);
+      const html = l === "en" ? (product.descriptionHtml ?? "") : text(l, "descriptionHtml", product.descriptionHtml ?? "");
+      return [l, seoFields(title, html, product.attributes.brand)];
+    }),
+  );
+  return { product, variants, photos, translations, rows, published: published[0] ?? null, seo };
 }
 export type ProductDetail = NonNullable<Awaited<ReturnType<typeof productDetail>>>;
 

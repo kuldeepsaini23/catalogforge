@@ -1,13 +1,17 @@
 import { and, asc, eq, gt, inArray, isNull, type SQL } from "drizzle-orm";
 import type { CatalogProduct } from "@/lib/ai/schema";
 import { getDb, schema } from "@/lib/db/client";
+import { seoFields } from "@/lib/seo";
+import { translatedAttributes, translatedTags } from "@/lib/translate/fields";
 
 const PAGE = 500;
 
 export type ExportScope = "approved" | "reviewed" | "all";
 
 export interface ExportedProduct extends CatalogProduct {
-  translations?: Record<string, { title?: string; description_html?: string; status: Record<string, string> }>;
+  translations?: Record<string, { title?: string; description_html?: string; tags?: string[]; attributes?: Record<string, string>; status: Record<string, string> }>;
+  /** Meta title/description per language (DE/FR only when translations are exported). */
+  seo: Record<string, { meta_title: string; meta_description: string }>;
 }
 
 /** Streams products in the exact catalog JSON shape, page by page (constant memory). */
@@ -43,14 +47,28 @@ export async function* exportProducts(scope: ExportScope, withTranslations: bool
         status: p.status === "needs_review" ? "needs_review" : "done",
         review_reason: p.reviewReason,
         source_rows: p.sourceRows,
+        seo: {},
       };
+      const seo = (title: string, html: string) => {
+        const s = seoFields(title, html, p.attributes.brand);
+        return { meta_title: s.metaTitle, meta_description: s.metaDescription };
+      };
+      out.seo.en = seo(out.title, out.description_html);
       if (withTranslations) {
         out.translations = {};
         for (const t of translations.filter((x) => x.productId === p.id)) {
           const entry = (out.translations[t.locale] ??= { status: {} });
+          const key = t.field === "descriptionHtml" ? "description_html" : t.field;
           if (t.field === "title") entry.title = t.text;
-          else entry.description_html = t.text;
-          entry.status[t.field === "title" ? "title" : "description_html"] = t.status;
+          else if (t.field === "descriptionHtml") entry.description_html = t.text;
+          else if (t.field === "tags") entry.tags = translatedTags(t.text);
+          else if (t.field === "attributes") entry.attributes = translatedAttributes(p.attributes, t.text);
+          entry.status[key] = t.status;
+        }
+        // Same fallback as the storefront: a failed translation shows the English.
+        for (const [locale, t] of Object.entries(out.translations)) {
+          const ok = (field: "title" | "description_html") => t.status[field] !== "failed";
+          out.seo[locale] = seo(ok("title") && t.title ? t.title : out.title, ok("description_html") && t.description_html ? t.description_html : out.description_html);
         }
       }
       yield out;

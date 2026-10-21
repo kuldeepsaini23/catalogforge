@@ -56,6 +56,7 @@ Hard rules — your output is machine-checked and rejected if any are broken:
 - Keep every number and unit exactly as written (e.g. "30 cm", "500 g", "2", "1.5 l").
 - Keep brand names and items listed under "keep" unchanged.
 - Do not add, drop or soften information; keep nuance ("frost-resistant, not frost-proof").
+- A text with several lines is a list (tags, attribute values): translate each line on its own and return the same number of lines in the same order.
 - Return one item per input id, same ids.`;
 
 export function translateUserPrompt(
