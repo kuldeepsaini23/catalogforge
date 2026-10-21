@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { getDb, schema } from "@/lib/db/client";
+import { getDb, getPool, schema } from "@/lib/db/client";
+import { notifyStorefront } from "@/lib/storefront-sync";
 import type { StorefrontData } from "@/lib/db/schema";
 import { TARGET_LOCALES } from "@/lib/translate/locales";
 
@@ -75,6 +76,9 @@ export async function approveProducts(productIds: string[]): Promise<PublishResu
   return { published: ok, skipped, handles: rows.map((r) => r.handle), categories: [...new Set(rows.map((r) => r.category))] };
 }
 
+const notify = (handles: string[], categories: string[]) =>
+  notifyStorefront({ handles, categories }, (text, params) => getPool().query(text, params));
+
 async function upsertSnapshots(rows: Awaited<ReturnType<typeof snapshot>>): Promise<void> {
   const db = getDb();
   for (const r of rows) {
@@ -82,6 +86,7 @@ async function upsertSnapshots(rows: Awaited<ReturnType<typeof snapshot>>): Prom
     await db.delete(schema.storefrontProducts).where(and(eq(schema.storefrontProducts.productId, r.productId)));
     await db.insert(schema.storefrontProducts).values({ ...r, publishedAt: new Date() });
   }
+  if (rows.length) await notify(rows.map((r) => r.handle), [...new Set(rows.map((r) => r.category))]);
 }
 
 /** Re-snapshots already-approved products (e.g. after translations land). */
@@ -98,6 +103,7 @@ export async function unpublishProducts(productIds: string[]): Promise<string[]>
   const res = await getDb()
     .delete(schema.storefrontProducts)
     .where(inArray(schema.storefrontProducts.productId, productIds))
-    .returning({ handle: schema.storefrontProducts.handle });
+    .returning({ handle: schema.storefrontProducts.handle, category: schema.storefrontProducts.category });
+  if (res.length) await notify(res.map((r) => r.handle), [...new Set(res.map((r) => r.category))]);
   return res.map((r) => r.handle);
 }

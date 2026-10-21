@@ -3,7 +3,7 @@
  * and the worker together with prefixed logs. Ctrl+C stops both.
  *
  *   bun run up            # dev server (hot reload) + worker
- *   bun run up -- --prod  # production build + next start + worker
+ *   bun run up -- --prod  # production build + multi-process server + worker
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -49,6 +49,6 @@ function shutdown(code: number) {
 process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
 
-run("web", ["run", prod ? "start" : "dev"], "36");
+run("web", ["run", prod ? "serve" : "dev"], "36");
 run("worker", ["run", "worker"], "35");
 console.log("\nCatalogForge is starting: http://localhost:3000 (dashboard) and http://localhost:3000/store/DE (storefront)\n");

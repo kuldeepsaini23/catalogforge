@@ -4,6 +4,7 @@ import { slugify } from "@/lib/cleaning/text";
 import { getDb, schema } from "@/lib/db/client";
 import type { StorefrontData } from "@/lib/db/schema";
 import { COLLECTIONS_TAG, collectionTag, productTag } from "@/lib/revalidate";
+import { versionOf } from "@/lib/storefront-sync";
 import type { Locale } from "@/lib/translate/locales";
 
 /**
@@ -28,7 +29,25 @@ export interface StoreCollection {
   coverPhoto: string | null;
 }
 
-export async function getCollections(): Promise<StoreCollection[]> {
+/**
+ * Public readers add the cross-process version to the cache key (see storefront-sync.ts); the
+ * `*Cached` functions below are the actual cache entries.
+ */
+export function getCollections(): Promise<StoreCollection[]> {
+  return getCollectionsCached(versionOf("collections"));
+}
+export function getCollection(slug: string, limit = 48) {
+  return getCollectionCached(slug, limit, versionOf("collections"));
+}
+export function getProduct(handle: string): Promise<StoreProduct | null> {
+  return getProductCached(handle, versionOf(`p:${handle}`));
+}
+export function getFeatured(limit = 8): Promise<StoreProduct[]> {
+  return getFeaturedCached(limit, versionOf("collections"));
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- `version` is part of the cache key
+async function getCollectionsCached(version: string): Promise<StoreCollection[]> {
   "use cache";
   cacheLife("storefront");
   cacheTag(COLLECTIONS_TAG);
@@ -44,10 +63,10 @@ export async function getCollections(): Promise<StoreCollection[]> {
   }));
 }
 
-export async function getCollection(slug: string, limit = 48): Promise<{ collection: StoreCollection; products: StoreProduct[] } | null> {
+async function getCollectionCached(slug: string, limit: number, version: string): Promise<{ collection: StoreCollection; products: StoreProduct[] } | null> {
   "use cache";
   cacheLife("storefront");
-  const collection = (await getCollections()).find((c) => c.slug === slug);
+  const collection = (await getCollectionsCached(version)).find((c) => c.slug === slug);
   if (!collection) return null;
   cacheTag(collectionTag(collection.category));
   const products = await getDb()
@@ -65,7 +84,8 @@ export async function getCollection(slug: string, limit = 48): Promise<{ collect
   return { collection, products: products.map((p) => ({ ...p, currency: p.currency?.trim() ?? null })) };
 }
 
-export async function getProduct(handle: string): Promise<StoreProduct | null> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- `version` is part of the cache key
+async function getProductCached(handle: string, version: string): Promise<StoreProduct | null> {
   "use cache";
   cacheLife("storefront");
   cacheTag(productTag(handle));
@@ -83,7 +103,8 @@ export async function getProduct(handle: string): Promise<StoreProduct | null> {
   return p ? { ...p, currency: p.currency?.trim() ?? null } : null;
 }
 
-export async function getFeatured(limit = 8): Promise<StoreProduct[]> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- `version` is part of the cache key
+async function getFeaturedCached(limit: number, version: string): Promise<StoreProduct[]> {
   "use cache";
   cacheLife("storefront");
   cacheTag(COLLECTIONS_TAG);

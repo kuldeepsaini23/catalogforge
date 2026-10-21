@@ -73,8 +73,11 @@ async function main() {
   const seed = await waitDone(seedId, "seed import");
   const published = await publishReady();
   console.log(`published ${published} products`);
-  const warm = await api<{ products: number; ms: number }>("/api/storefront-warm", { method: "POST" });
-  console.log(`warmed storefront data cache: ${warm.products} products in ${warm.ms} ms`);
+  // Each web process has its own cache and the OS picks the process per connection: warm a few times.
+  for (let i = 0; i < 8; i++) {
+    const warm = await api<{ products: number; ms: number }>("/api/storefront-warm", { method: "POST" });
+    if (i === 0) console.log(`warmed storefront data cache: ${warm.products} products in ${warm.ms} ms`);
+  }
 
   console.log("warming the server (15 s k6 pass, not measured)");
   await runK6("15s", "load/results/k6-warmup.json");

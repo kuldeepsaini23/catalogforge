@@ -19,7 +19,8 @@
     "check": "bun run typecheck && bun run lint && bun run test",
     "scale-run": "tsx scripts/scale-run.ts",
     "load": "k6 run load/storefront.js",
-    "up": "tsx scripts/up.ts"
+    "up": "tsx scripts/up.ts",
+    "serve": "tsx --env-file=.env server.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",
