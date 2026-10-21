@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { exportCsv, exportProducts, type ExportScope } from "@/lib/export";
+import { exportCsv, exportProducts, exportShopifyCsv, type ExportScope } from "@/lib/export";
 
 const encoder = new TextEncoder();
 
@@ -26,19 +26,23 @@ async function* jsonArray(scope: ExportScope, withTranslations: boolean): AsyncG
   yield "\n]\n";
 }
 
-/** GET /api/export?format=json|csv&scope=approved|reviewed|all&translations=1 — streamed. */
+/** GET /api/export?format=json|csv|shopify&scope=approved|reviewed|all&translations=1 — streamed. */
 export async function GET(req: Request) {
   await connection();
   const p = new URL(req.url).searchParams;
-  const format = p.get("format") === "csv" ? "csv" : "json";
+  const formatParam = p.get("format");
+  const format = formatParam === "csv" || formatParam === "shopify" ? formatParam : "json";
   const scopeParam = p.get("scope");
   const scope: ExportScope = scopeParam === "approved" || scopeParam === "reviewed" ? scopeParam : "all";
   const stamp = new Date().toISOString().slice(0, 10);
-  const body = format === "csv" ? streamOf(exportCsv(scope)) : streamOf(jsonArray(scope, p.get("translations") === "1"));
+  const origin = new URL(req.url).origin;
+  const body =
+    format === "csv" ? streamOf(exportCsv(scope)) : format === "shopify" ? streamOf(exportShopifyCsv(scope, origin)) : streamOf(jsonArray(scope, p.get("translations") === "1"));
+  const ext = format === "json" ? "json" : "csv";
   return new Response(body, {
     headers: {
-      "Content-Type": format === "csv" ? "text/csv; charset=utf-8" : "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="catalog-${scope}-${stamp}.${format}"`,
+      "Content-Type": ext === "csv" ? "text/csv; charset=utf-8" : "application/json; charset=utf-8",
+      "Content-Disposition": `attachment; filename="catalog-${format === "shopify" ? "shopify-" : ""}${scope}-${stamp}.${ext}"`,
       "Cache-Control": "no-store",
     },
   });

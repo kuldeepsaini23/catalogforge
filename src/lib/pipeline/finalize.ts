@@ -1,5 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db/client";
+import { env } from "@/lib/env";
+import { QUEUES, send } from "@/lib/queue";
 import { rowCounts, type ImportCounts } from "./rows";
 
 export interface Reconciliation extends ImportCounts {
@@ -37,5 +39,8 @@ export async function maybeFinalize(importId: string): Promise<boolean> {
     .set({ status: "completed", phase: null, pausedUntil: null, pauseReason: null, finishedAt: new Date(), updatedAt: new Date() })
     .where(and(eq(schema.imports.id, importId), sql`${schema.imports.status} IN ('building', 'paused')`))
     .returning({ id: schema.imports.id });
+  if (res.length && env().IMPORT_WEBHOOK_URL) {
+    await send(QUEUES.webhook, { importId, event: "import.completed" }, { singletonKey: `webhook:${importId}:completed` });
+  }
   return res.length > 0;
 }

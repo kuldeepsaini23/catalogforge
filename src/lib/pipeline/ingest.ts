@@ -79,6 +79,7 @@ export async function handleIngest(importId: string): Promise<void> {
   } catch (err) {
     if (err instanceof SheetError) {
       await db.update(schema.imports).set({ status: "failed", error: err.message, phase: null, finishedAt: new Date(), updatedAt: new Date() }).where(eq(schema.imports.id, importId));
+      if (env().IMPORT_WEBHOOK_URL) await send(QUEUES.webhook, { importId, event: "import.failed" });
       return;
     }
     throw err;

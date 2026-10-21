@@ -9,6 +9,7 @@ export const QUEUES = {
   translate: "product-translate",
   finalize: "import-finalize",
   sweep: "import-sweep",
+  webhook: "import-webhook",
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
@@ -20,6 +21,7 @@ export interface JobData {
   [QUEUES.translate]: { importId: string | null; productIds: string[] };
   [QUEUES.finalize]: { importId: string };
   [QUEUES.sweep]: Record<string, never>;
+  [QUEUES.webhook]: { importId: string; event: "import.completed" | "import.failed" };
 }
 
 const globalForBoss = globalThis as unknown as { __cfBoss?: Promise<PgBoss> };

@@ -19,6 +19,8 @@ const schema = z
     AI_PRODUCTS_PER_CALL_STRONG: z.coerce.number().int().min(1).max(10).default(4),
     AI_MIN_CONFIDENCE: z.coerce.number().int().min(0).max(100).default(70),
     STORAGE_DIR: z.string().default("./data"),
+    IMPORT_WEBHOOK_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+    IMPORT_WEBHOOK_SECRET: z.string().optional(),
     WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
     MOCK_LATENCY_MS: z.coerce.number().int().nonnegative().default(40),
     MOCK_FAULT_RATE: z.coerce.number().min(0).max(1).default(0),

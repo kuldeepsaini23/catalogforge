@@ -7,6 +7,7 @@ import { handleBuild } from "@/lib/pipeline/build";
 import { maybeFinalize } from "@/lib/pipeline/finalize";
 import { handleIngest } from "@/lib/pipeline/ingest";
 import { handleSweep } from "@/lib/pipeline/sweep";
+import { handleWebhook } from "@/lib/pipeline/webhook";
 import { ensureQueues, getBoss, QUEUES, stopBoss, type JobData } from "@/lib/queue";
 import { handleTranslate } from "@/lib/translate/run";
 
@@ -39,6 +40,7 @@ export async function startWorker(): Promise<() => Promise<void>> {
   await boss.work(QUEUES.batchPoll, { ...polling, localConcurrency: 2 }, wrap(QUEUES.batchPoll, handleBatchPoll));
   await boss.work(QUEUES.translate, { ...polling, localConcurrency: Math.max(1, Math.floor(concurrency / 2)) }, wrap(QUEUES.translate, handleTranslate));
   await boss.work(QUEUES.finalize, { ...polling, localConcurrency: 1 }, wrap(QUEUES.finalize, (d) => maybeFinalize(d.importId)));
+  await boss.work(QUEUES.webhook, { ...polling, localConcurrency: 2 }, wrap(QUEUES.webhook, handleWebhook));
   await boss.work(QUEUES.sweep, { pollingIntervalSeconds: 2, localConcurrency: 1 }, wrap(QUEUES.sweep, async () => {
     const { resumed } = await handleSweep();
     if (resumed.length) log("sweep resumed", resumed.join(", "));

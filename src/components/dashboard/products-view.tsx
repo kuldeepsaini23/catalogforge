@@ -129,6 +129,7 @@ export function ProductsView() {
               <DropdownMenuLabel>Published products</DropdownMenuLabel>
               <DropdownMenuItem asChild><a href="/api/export?format=csv&scope=approved">CSV, one row per variant</a></DropdownMenuItem>
               <DropdownMenuItem asChild><a href="/api/export?format=json&scope=approved&translations=1">JSON with translations</a></DropdownMenuItem>
+              <DropdownMenuItem asChild><a href="/api/export?format=shopify&scope=approved">Shopify product CSV</a></DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Everything built so far</DropdownMenuLabel>
               <DropdownMenuItem asChild><a href="/api/export?format=csv&scope=all">CSV, one row per variant</a></DropdownMenuItem>

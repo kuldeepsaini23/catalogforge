@@ -1,4 +1,4 @@
-import { and, asc, gt, inArray, isNull, type SQL } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, type SQL } from "drizzle-orm";
 import type { CatalogProduct } from "@/lib/ai/schema";
 import { getDb, schema } from "@/lib/db/client";
 
@@ -83,5 +83,65 @@ export async function* exportCsv(scope: ExportScope): AsyncGenerator<string> {
         p.translations?.de?.title, p.translations?.fr?.title,
       ].map(cell).join(",") + "\n";
     }
+  }
+}
+
+const SHOPIFY_HEADERS = [
+  "Handle", "Title", "Body (HTML)", "Vendor", "Product Category", "Type", "Tags", "Published",
+  "Option1 Name", "Option1 Value", "Option2 Name", "Option2 Value", "Option3 Name", "Option3 Value",
+  "Variant SKU", "Variant Grams", "Variant Inventory Policy", "Variant Fulfillment Service", "Variant Price",
+  "Variant Requires Shipping", "Variant Taxable", "Image Src", "Image Position", "Variant Weight Unit", "Status",
+];
+
+/** Minor units → "12.50" without floating point. */
+export function decimalPrice(cents: number | null): string {
+  if (cents === null) return "";
+  const s = String(cents).padStart(3, "0");
+  return `${s.slice(0, -2)}.${s.slice(-2)}`;
+}
+
+/**
+ * Shopify's product CSV import format: one row per variant; product-level columns only on the
+ * first row of each handle (as Shopify expects). Photos use absolute URLs to our photo route.
+ */
+export async function* exportShopifyCsv(scope: ExportScope, baseUrl: string): AsyncGenerator<string> {
+  yield SHOPIFY_HEADERS.join(",") + "\n";
+  const db = getDb();
+  for await (const p of exportProducts(scope, false)) {
+    const [row] = await db.select({ id: schema.products.id }).from(schema.products).where(eq(schema.products.handle, p.handle));
+    const photos = row ? await db.select({ id: schema.photos.id }).from(schema.photos).where(eq(schema.photos.productId, row.id)) : [];
+    const optionNames = [...new Set(p.variants.flatMap((v) => Object.keys(v.options)))].slice(0, 3);
+    const label = (n: string) => n.charAt(0).toUpperCase() + n.slice(1);
+    const lines = p.variants.map((v, i) => {
+      const first = i === 0;
+      const cells: Array<string | number> = [
+        p.handle,
+        first ? p.title : "",
+        first ? p.description_html : "",
+        first ? (p.attributes.brand ?? "") : "",
+        first ? p.category : "",
+        first ? (p.category.split(" > ").pop() ?? "") : "",
+        first ? p.tags.join(", ") : "",
+        first ? (p.status === "done" ? "TRUE" : "FALSE") : "",
+        ...[0, 1, 2].flatMap((k) => (optionNames[k] ? [first ? label(optionNames[k]) : "", v.options[optionNames[k]] ?? ""] : ["", ""])),
+        v.sku,
+        v.weight_grams ?? "",
+        "deny",
+        "manual",
+        decimalPrice(v.price_cents),
+        "TRUE",
+        "TRUE",
+        photos[i] ? `${baseUrl}/api/photos/${photos[i].id}` : "",
+        photos[i] ? i + 1 : "",
+        "g",
+        first ? (p.status === "done" ? "active" : "draft") : "",
+      ];
+      if (!optionNames.length) {
+        cells[8] = first ? "Title" : "";
+        cells[9] = "Default Title";
+      }
+      return cells.map(cell).join(",") + "\n";
+    });
+    yield lines.join("");
   }
 }
