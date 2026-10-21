@@ -11,6 +11,9 @@ const schema = z
     DB_POOL_MAX: z.coerce.number().int().positive().default(10),
     AI_PROVIDER: z.enum(["mock", "anthropic"]).default("mock"),
     ANTHROPIC_API_KEY: z.string().optional(),
+    // Route Claude calls through Vercel AI Gateway instead of api.anthropic.com.
+    AI_GATEWAY_API_KEY: z.string().optional(),
+    AI_GATEWAY_BASE_URL: z.string().url().default("https://ai-gateway.vercel.sh"),
     AI_MODEL_CHEAP: z.string().default("claude-haiku-4-5"),
     AI_MODEL_STRONG: z.string().default("claude-sonnet-4-5"),
     AI_BATCH_THRESHOLD: z.coerce.number().int().nonnegative().default(100),
@@ -28,8 +31,8 @@ const schema = z
     MOCK_BATCH_DELAY_MS: z.coerce.number().int().nonnegative().default(2000),
   })
   .superRefine((v, ctx) => {
-    if (v.AI_PROVIDER === "anthropic" && !v.ANTHROPIC_API_KEY) {
-      ctx.addIssue({ code: "custom", path: ["ANTHROPIC_API_KEY"], message: "ANTHROPIC_API_KEY is required when AI_PROVIDER=anthropic" });
+    if (v.AI_PROVIDER === "anthropic" && !v.ANTHROPIC_API_KEY && !v.AI_GATEWAY_API_KEY) {
+      ctx.addIssue({ code: "custom", path: ["ANTHROPIC_API_KEY"], message: "ANTHROPIC_API_KEY or AI_GATEWAY_API_KEY is required when AI_PROVIDER=anthropic" });
     }
   });
 

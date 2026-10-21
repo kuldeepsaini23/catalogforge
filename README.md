@@ -42,7 +42,7 @@ bun run up                    # migrates, generates sample sheets, starts web + 
 
 Open **http://localhost:3000**. Sample files are in `fixtures/out/` (`sample-200.csv`/`.xlsx`, `supplier-5000`, `supplier-10000`, each with a photo ZIP).
 
-**Using Claude instead of the mock:** set `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY=…` in `.env` and restart. Models are configurable (`AI_MODEL_CHEAP=claude-haiku-4-5`, `AI_MODEL_STRONG=claude-sonnet-4-5`).
+**Using Claude instead of the mock:** set `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY=…` in `.env` and restart. To go through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway/sdks-and-apis/anthropic-messages-api) instead, set `AI_GATEWAY_API_KEY=…`; the same Anthropic SDK is pointed at the gateway and model ids are mapped (`claude-haiku-4-5` → `anthropic/claude-haiku-4.5`). Batches are split per model and capped at 1,000 requests (a gateway rule); if the gateway refuses batches for the key, those products are built with normal calls instead. Models are configurable (`AI_MODEL_CHEAP=claude-haiku-4-5`, `AI_MODEL_STRONG=claude-sonnet-4-5`).
 
 | Command | What it does |
 |---|---|

@@ -248,7 +248,7 @@ export const aiBatches = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     importId: uuid("import_id").notNull().references(() => imports.id, { onDelete: "cascade" }),
     providerBatchId: text("provider_batch_id"),
-    status: text("status").$type<"submitting" | "in_progress" | "ended" | "applied" | "failed">().notNull(),
+    status: text("status").$type<"submitting" | "in_progress" | "ended" | "applied" | "failed" | "fallback">().notNull(),
     /** custom_id → products + model in that request */
     requests: jsonb("requests").$type<Record<string, BatchRequestEntry>>().notNull(),
     error: text("error"),

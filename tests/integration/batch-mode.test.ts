@@ -31,8 +31,12 @@ describe("Message Batches mode", () => {
     expect(r.total).toBe(400);
 
     const db = getDb();
-    const batches = await db.execute<{ status: string; n: string }>(sql`SELECT status, count(*) AS n FROM ai_batches GROUP BY status`);
-    expect(batches.rows).toEqual([{ status: "applied", n: "1" }]);
+    // One batch per model (cheap + strong), all applied, each holding a single model.
+    const batches = await db.execute<{ status: string; models: string }>(sql`
+      SELECT b.status, count(DISTINCT r.value->>'model') AS models
+      FROM ai_batches b, jsonb_each(b.requests) r GROUP BY b.id, b.status`);
+    expect(batches.rows.length).toBeGreaterThanOrEqual(1);
+    expect(batches.rows.every((b) => b.status === "applied" && b.models === "1")).toBe(true);
     const calls = await db.execute<{ mode: string; products: string }>(sql`SELECT mode, sum(product_count) AS products FROM ai_calls WHERE kind = 'build' GROUP BY mode`);
     const built = await db.execute<{ n: string }>(sql`SELECT count(*) AS n FROM products WHERE built_hash IS NOT NULL`);
     // Every product came from the batch, once.

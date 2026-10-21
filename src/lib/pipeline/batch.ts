@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { parseBuildOutput } from "@/lib/ai/build";
-import { RateLimitedError } from "@/lib/ai/errors";
+import { FatalAiError, RateLimitedError } from "@/lib/ai/errors";
 import { getProvider, type BatchResult } from "@/lib/ai/provider";
 import { routeProduct } from "@/lib/ai/routing";
 import type { AiProductDraft } from "@/lib/ai/schema";
@@ -14,6 +14,7 @@ import { pauseImport, pausedUntil } from "./pause";
 import { writeBuiltProducts } from "./persist";
 
 const APPLY_CONCURRENCY = 6;
+const BATCH_MAX_REQUESTS = 1_000;
 
 function pollDelayMs(): number {
   return env().AI_PROVIDER === "mock" ? Math.max(500, Math.round(env().MOCK_BATCH_DELAY_MS / 2)) : 60_000;
@@ -49,6 +50,7 @@ export async function handleBatchSubmit(data: JobData[typeof QUEUES.batchSubmit]
     return;
   }
 
+  const chunks: Array<Record<string, BatchRequestEntry>> = [];
   const buckets = new Map<string, typeof pending>();
   for (const p of pending) {
     const d = routeProduct(p.input!);
@@ -56,45 +58,65 @@ export async function handleBatchSubmit(data: JobData[typeof QUEUES.batchSubmit]
     if (!buckets.has(k)) buckets.set(k, []);
     buckets.get(k)!.push(p);
   }
-  const requests: Record<string, BatchRequestEntry> = {};
+  // One provider batch per model, at most BATCH_MAX_REQUESTS requests each (Vercel AI Gateway
+  // requires both; the Anthropic API accepts it too).
+  const groups = new Map<string, Record<string, BatchRequestEntry>>();
   let n = 0;
   for (const [k, items] of buckets) {
     const [route, vision] = k.split(":") as ["cheap" | "strong", string];
     const size = route === "cheap" ? env().AI_PRODUCTS_PER_CALL_CHEAP : env().AI_PRODUCTS_PER_CALL_STRONG;
     const model = route === "cheap" ? env().AI_MODEL_CHEAP : env().AI_MODEL_STRONG;
     for (let i = 0; i < items.length; i += size) {
-      requests[`req-${n++}`] = { productIds: items.slice(i, i + size).map((p) => p.id), model, route, vision: vision === "true" };
+      let group = groups.get(model);
+      if (!group || Object.keys(group).length >= BATCH_MAX_REQUESTS) {
+        group = {};
+        groups.set(model, group);
+        chunks.push(group);
+      }
+      group[`req-${n++}`] = { productIds: items.slice(i, i + size).map((p) => p.id), model, route, vision: vision === "true" };
     }
   }
-  const [row] = await db.insert(schema.aiBatches).values({ importId, status: "submitting", requests }).returning();
   const inputs = new Map(pending.map((p) => [p.id, p.input!]));
   const provider = await getProvider();
-  try {
-    const batchId = await provider.submitBatch(
-      Object.entries(requests).map(([customId, r]) => ({
-        customId,
-        request: { model: r.model, vision: Boolean(r.vision), products: r.productIds.map((id) => inputs.get(id)!) },
-      })),
-    );
-    await db.update(schema.aiBatches).set({ providerBatchId: batchId, status: "in_progress", updatedAt: new Date() }).where(eq(schema.aiBatches.id, row.id));
-  } catch (err) {
-    await db.update(schema.aiBatches).set({ status: "failed", error: (err as Error).message, updatedAt: new Date() }).where(eq(schema.aiBatches.id, row.id));
-    if (err instanceof RateLimitedError) {
-      const at = await pauseImport(importId, err.retryAfterMs, `Rate limited by AI provider: ${err.message}`);
-      await send(QUEUES.batchSubmit, data, { startAfter: at });
-      return;
+  for (const requests of chunks) {
+    const [row] = await db.insert(schema.aiBatches).values({ importId, status: "submitting", requests }).returning();
+    try {
+      const batchId = await provider.submitBatch(
+        Object.entries(requests).map(([customId, r]) => ({
+          customId,
+          request: { model: r.model, vision: Boolean(r.vision), products: r.productIds.map((id) => inputs.get(id)!) },
+        })),
+        row.id,
+      );
+      await db.update(schema.aiBatches).set({ providerBatchId: batchId, status: "in_progress", updatedAt: new Date() }).where(eq(schema.aiBatches.id, row.id));
+    } catch (err) {
+      await db.update(schema.aiBatches).set({ status: "failed", error: (err as Error).message, updatedAt: new Date() }).where(eq(schema.aiBatches.id, row.id));
+      if (err instanceof RateLimitedError) {
+        const at = await pauseImport(importId, err.retryAfterMs, `Rate limited by AI provider: ${err.message}`);
+        await send(QUEUES.batchSubmit, data, { startAfter: at });
+        return;
+      }
+      if (err instanceof FatalAiError) {
+        // Batches refused (e.g. not enabled for this key): build these products synchronously instead.
+        // "fallback" keeps them covered so the next batch-submit doesn't send them again.
+        await db.update(schema.aiBatches).set({ status: "fallback", updatedAt: new Date() }).where(eq(schema.aiBatches.id, row.id));
+        for (const r of Object.values(requests)) {
+          await send(QUEUES.build, { importId, productIds: r.productIds, route: r.route, vision: Boolean(r.vision) });
+        }
+        continue;
+      }
+      throw err;
     }
-    throw err;
+    await send(QUEUES.batchPoll, { importId, batchRowId: row.id }, { startAfter: new Date(Date.now() + pollDelayMs()) });
   }
-  await db.update(schema.imports).set({ phase: `Batch submitted (${Object.keys(requests).length} requests, ${pending.length} products)`, updatedAt: new Date() }).where(eq(schema.imports.id, importId));
-  await send(QUEUES.batchPoll, { importId, batchRowId: row.id }, { startAfter: new Date(Date.now() + pollDelayMs()) });
+  await db.update(schema.imports).set({ phase: `Batch submitted (${n} requests, ${pending.length} products)`, updatedAt: new Date() }).where(eq(schema.imports.id, importId));
 }
 
 /** import.batch-poll: waits for the batch to end, then applies each result exactly once. */
 export async function handleBatchPoll(data: JobData[typeof QUEUES.batchPoll]): Promise<void> {
   const db = getDb();
   const [row] = await db.select().from(schema.aiBatches).where(eq(schema.aiBatches.id, data.batchRowId));
-  if (!row || row.status === "applied" || row.status === "failed" || !row.providerBatchId) return;
+  if (!row || row.status === "applied" || row.status === "failed" || row.status === "fallback" || !row.providerBatchId) return;
   const provider = await getProvider();
   const status = await provider.batchStatus(row.providerBatchId);
   if (status !== "ended") {

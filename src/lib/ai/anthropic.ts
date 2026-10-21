@@ -22,6 +22,15 @@ function supportsForcedTool(model: string): boolean {
   return !/(opus-5-5|sonnet-5-5|fable-5-1|mythos-5-1)/.test(model);
 }
 
+/**
+ * Vercel AI Gateway names models "anthropic/claude-haiku-4.5"; the rest of the app (pricing,
+ * routing, logs) keeps Anthropic's ids, so the translation happens only at the wire.
+ */
+export function wireModel(model: string, gateway: boolean): string {
+  if (!gateway || model.includes("/")) return model;
+  return `anthropic/${model.replace(/-(\d+)-(\d+)$/, "-$1.$2")}`;
+}
+
 function usageOf(u: Anthropic.Usage | undefined): Usage {
   return {
     inputTokens: u?.input_tokens ?? 0,
@@ -62,7 +71,13 @@ function extractJson(message: Anthropic.Message, toolName: string): unknown {
 
 export class AnthropicProvider implements AiProvider {
   readonly name = "anthropic" as const;
-  private client = new Anthropic({ apiKey: env().ANTHROPIC_API_KEY, maxRetries: 0, timeout: 120_000 });
+  private gateway = Boolean(env().AI_GATEWAY_API_KEY);
+  private client = new Anthropic({
+    apiKey: env().AI_GATEWAY_API_KEY ?? env().ANTHROPIC_API_KEY,
+    baseURL: this.gateway ? env().AI_GATEWAY_BASE_URL : undefined,
+    maxRetries: 0,
+    timeout: 120_000,
+  });
 
   private async buildParams(req: BuildRequest): Promise<Anthropic.MessageCreateParamsNonStreaming> {
     const content: Anthropic.ContentBlockParam[] = [];
@@ -94,7 +109,7 @@ export class AnthropicProvider implements AiProvider {
     toolDescription: string,
   ): Anthropic.MessageCreateParamsNonStreaming {
     const base = {
-      model,
+      model: wireModel(model, this.gateway),
       max_tokens: maxTokens,
       system: [{ type: "text" as const, text: system, cache_control: { type: "ephemeral" as const } }],
       messages: [{ role: "user" as const, content }],
@@ -141,12 +156,13 @@ export class AnthropicProvider implements AiProvider {
     }
   }
 
-  async submitBatch(items: BatchItem[]): Promise<string> {
+  async submitBatch(items: BatchItem[], idempotencyKey: string): Promise<string> {
     const requests = await Promise.all(
       items.map(async (i) => ({ custom_id: i.customId, params: await this.buildParams(i.request) })),
     );
     try {
-      const batch = await this.client.messages.batches.create({ requests });
+      // The gateway returns the existing batch when a submission is retried with the same key.
+      const batch = await this.client.messages.batches.create({ requests }, { headers: { "Idempotency-Key": idempotencyKey } });
       return batch.id;
     } catch (err) {
       throw classifyError(err);

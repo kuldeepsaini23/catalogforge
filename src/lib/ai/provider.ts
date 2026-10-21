@@ -37,7 +37,7 @@ export interface AiProvider {
   build(req: BuildRequest): Promise<CallResult>;
   translate(req: TranslateRequest): Promise<CallResult>;
   /** Message Batches API. Returns the provider batch id. */
-  submitBatch(items: BatchItem[]): Promise<string>;
+  submitBatch(items: BatchItem[], idempotencyKey: string): Promise<string>;
   batchStatus(batchId: string): Promise<"in_progress" | "ended">;
   batchResults(batchId: string): AsyncIterable<BatchResult>;
 }
