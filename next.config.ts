@@ -9,8 +9,9 @@ const nextConfig: NextConfig = {
     // Storefront pages: serve from cache, refresh in the background; publishing expires tags at once.
     storefront: { stale: 60, revalidate: 300, expire: 3600 },
   },
-  // Server-only packages used by route handlers and the worker.
-  serverExternalPackages: ["pg", "pg-boss", "sanitize-html", "xlsx"],
+  // Server-only packages used by route handlers and the worker. sanitize-html stays bundled: it
+  // require()s htmlparser2, which is ESM-only, and Vercel's runtime refuses that at load time.
+  serverExternalPackages: ["pg", "pg-boss", "xlsx"],
   partialPrefetching: true,
   async headers() {
     return [
