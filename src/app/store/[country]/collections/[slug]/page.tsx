@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { cacheLife, cacheTag } from "next/cache";
+import { COLLECTIONS_TAG } from "@/lib/revalidate";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/store/product-card";
@@ -11,13 +13,18 @@ export const metadata: Metadata = { title: "Collection" };
 export default function CollectionPage({ params }: PageProps<"/store/[country]/collections/[slug]">) {
   return (
     <Suspense fallback={<div className="py-10 text-sm text-[#6b6b6e]">…</div>}>
-      <Collection params={params} />
+      {params.then(({ country, slug }) => (
+        <Collection country={country} slug={slug} />
+      ))}
     </Suspense>
   );
 }
 
-async function Collection({ params }: { params: Promise<{ country: string; slug: string }> }) {
-  const { country, slug } = await params;
+/** Rendered collection cached per (country, slug); getCollection tags it with the collection tag. */
+async function Collection({ country, slug }: { country: string; slug: string }) {
+  "use cache";
+  cacheLife("storefront");
+  cacheTag(COLLECTIONS_TAG);
   const locale = languageForCountry(decodeURIComponent(country));
   const t = STORE_COPY[locale];
   const result = await getCollection(slug);
