@@ -5,6 +5,7 @@ import { Check, Loader2, Pencil, RotateCcw, Send, ShieldAlert, ShieldCheck, Tras
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -81,6 +82,7 @@ export function ProductDetailView({ id }: { id: string }) {
   const [note, setNote] = useState("");
   const [highlight, setHighlight] = useState<{ row: number; column: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [rebuild, setRebuild] = useState<{ model: "auto" | "cheap" | "strong"; photos: boolean } | null>(null);
   const router = useRouter();
 
   if (error && !data) return <PageBody><p className="rounded-md bg-fail-soft px-3 py-2 text-sm text-fail">{error}</p></PageBody>;
@@ -121,7 +123,10 @@ export function ProductDetailView({ id }: { id: string }) {
   const act = async (action: "approve" | "retry" | "send_back") => {
     setActing(action);
     try {
-      const body = action === "send_back" ? { action, ids: [id], note } : { action, ids: [id] };
+      const body =
+        action === "send_back" ? { action, ids: [id], note }
+        : action === "retry" ? { action, ids: [id], ...(rebuild ?? {}) }
+        : { action, ids: [id] };
       const r = await postJson<{ approved?: number; skipped?: Array<{ reason: string }>; requeued?: number }>("/api/products/actions", body);
       if (action === "approve") {
         if (r.approved) toast.success("Published", { description: "Visible on the storefront preview." });
@@ -129,6 +134,7 @@ export function ProductDetailView({ id }: { id: string }) {
       } else {
         toast.success(action === "send_back" ? "Sent back to the AI with your note" : "Rebuild queued");
         setSendBack(false);
+        setRebuild(null);
         setNote("");
       }
       const fresh = await fetch(`/api/products/${id}`, { cache: "no-store" }).then((res) => res.json());
@@ -202,8 +208,8 @@ export function ProductDetailView({ id }: { id: string }) {
               Send back
             </Button>
             {(p.status === "failed" || p.status === "needs_review") && (
-              <Button variant="outline" onClick={() => act("retry")} disabled={acting !== null}>
-                {acting === "retry" ? <Loader2 className="animate-spin" aria-hidden /> : <RotateCcw aria-hidden />}
+              <Button variant="outline" onClick={() => setRebuild({ model: "auto", photos: data.photos.length > 0 })} disabled={acting !== null}>
+                <RotateCcw aria-hidden />
                 Rebuild
               </Button>
             )}
@@ -462,6 +468,52 @@ export function ProductDetailView({ id }: { id: string }) {
             <Button variant="destructive" onClick={remove} disabled={acting === "delete"}>
               {acting === "delete" && <Loader2 className="animate-spin" aria-hidden />}
               Delete product
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rebuild !== null} onOpenChange={(open) => !open && setRebuild(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rebuild with AI</DialogTitle>
+            <DialogDescription>The product is unpublished and built again. Your manual edits are kept.</DialogDescription>
+          </DialogHeader>
+          {rebuild && (
+            <div className="grid gap-4 text-sm">
+              <fieldset className="grid gap-2">
+                <legend className="mb-1 font-medium">Model</legend>
+                {([
+                  ["auto", "Automatic", "Same choice as the import: the cheap model unless the rows are messy"],
+                  ["cheap", "Fast (Haiku)", "Cheapest; good for clean rows"],
+                  ["strong", "Thorough (Sonnet)", "About 3× the cost; better with messy, conflicting or foreign-language rows"],
+                ] as const).map(([value, label, hint]) => (
+                  <label key={value} className="flex cursor-pointer items-start gap-2.5 rounded-md border border-line p-2.5 has-[:checked]:border-ink">
+                    <input type="radio" name="rebuild-model" className="mt-0.5" checked={rebuild.model === value} onChange={() => setRebuild({ ...rebuild, model: value })} />
+                    <span>
+                      <span className="font-medium">{label}</span>
+                      <span className="block text-slate">{hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              <label className="flex items-center gap-2.5">
+                <Checkbox
+                  checked={rebuild.model === "strong" && rebuild.photos}
+                  disabled={rebuild.model !== "strong" || data.photos.length === 0}
+                  onCheckedChange={(v) => setRebuild({ ...rebuild, photos: v === true })}
+                />
+                <span className={rebuild.model !== "strong" || data.photos.length === 0 ? "text-slate" : undefined}>
+                  Let the AI look at the photos{data.photos.length === 0 ? " (this product has none)" : rebuild.model !== "strong" ? " (Thorough model only)" : ""}
+                </span>
+              </label>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRebuild(null)}>Cancel</Button>
+            <Button onClick={() => act("retry")} disabled={acting !== null}>
+              {acting === "retry" && <Loader2 className="animate-spin" aria-hidden />}
+              Rebuild
             </Button>
           </DialogFooter>
         </DialogContent>

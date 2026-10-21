@@ -1,3 +1,4 @@
+import type { RouteOverride } from "./build";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -258,7 +259,7 @@ function remapClaims(claims: Array<{ text: string; source: string; quote: string
 }
 
 /** Routes pending products and enqueues build jobs (chunks per route) or one batch submission. */
-export async function enqueueBuilds(importId: string, productIds: string[], useBatch: boolean): Promise<void> {
+export async function enqueueBuilds(importId: string, productIds: string[], useBatch: boolean, override?: RouteOverride): Promise<void> {
   if (!productIds.length) return;
   if (useBatch) {
     await send(QUEUES.batchSubmit, { importId }, { singletonKey: `batch-submit:${importId}` });
@@ -271,7 +272,7 @@ export async function enqueueBuilds(importId: string, productIds: string[], useB
     .where(inArray(schema.products.id, productIds));
   const buckets: Record<string, string[]> = {};
   for (const r of rows) {
-    const d = routeProduct(r.input!);
+    const d = override ? { ...override, vision: override.vision && r.input!.photos.length > 0 } : routeProduct(r.input!);
     const key = `${d.route}:${d.vision}`;
     (buckets[key] ??= []).push(r.id);
   }

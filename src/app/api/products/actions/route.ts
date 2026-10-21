@@ -12,7 +12,8 @@ const ids = z.array(z.uuid()).min(1).max(1000);
 const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("approve"), ids }),
   z.object({ action: z.literal("send_back"), ids, note: z.string().trim().min(3).max(1000) }),
-  z.object({ action: z.literal("retry"), ids }),
+  // Re-run with different settings: "auto" keeps the router's choice; photos only apply to the strong model.
+  z.object({ action: z.literal("retry"), ids, model: z.enum(["auto", "cheap", "strong"]).default("auto"), photos: z.boolean().default(false) }),
 ]);
 
 /** Approve (publish), send back to the AI with a note, or retry. Works for one or many products. */
@@ -32,7 +33,11 @@ export async function POST(req: Request) {
       .where(inArray(schema.products.id, body.ids));
     const removed = await unpublishProducts(body.ids);
     revalidateStorefront(removed, rows.map((r) => r.category ?? "").filter(Boolean));
-    const n = await requeueProducts(body.ids, body.action === "send_back" ? body.note : undefined);
+    const n = await requeueProducts(
+      body.ids,
+      body.action === "send_back" ? body.note : undefined,
+      body.action === "retry" && body.model !== "auto" ? { route: body.model, vision: body.model === "strong" && body.photos } : undefined,
+    );
     return NextResponse.json({ requeued: n });
   } catch (err) {
     return handleError(err);

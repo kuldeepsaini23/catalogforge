@@ -145,7 +145,13 @@ export async function handleBuild(data: JobData[typeof QUEUES.build]): Promise<v
  * Retry / "send back": rebuilds products (optionally with a merchant note for the model). Rows keep
  * their last outcome until the rebuild lands, so a completed import stays reconciled meanwhile.
  */
-export async function requeueProducts(productIds: string[], merchantNote?: string): Promise<number> {
+/** Merchant-chosen model for a re-run, instead of the router's decision. */
+export interface RouteOverride {
+  route: "cheap" | "strong";
+  vision: boolean;
+}
+
+export async function requeueProducts(productIds: string[], merchantNote?: string, override?: RouteOverride): Promise<number> {
   const db = getDb();
   const res = await db
     .update(schema.products)
@@ -162,6 +168,6 @@ export async function requeueProducts(productIds: string[], merchantNote?: strin
   const byImport = new Map<string, string[]>();
   for (const r of res) if (r.importId) (byImport.get(r.importId) ?? byImport.set(r.importId, []).get(r.importId)!).push(r.id);
   const { enqueueBuilds } = await import("./ingest");
-  for (const [importId, ids] of byImport) await enqueueBuilds(importId, ids, false);
+  for (const [importId, ids] of byImport) await enqueueBuilds(importId, ids, false, override);
   return res.length;
 }

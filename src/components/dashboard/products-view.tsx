@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowDown, ArrowUp, Check, Download, Loader2, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Download, Loader2, RotateCcw, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -112,6 +112,21 @@ export function ProductsView() {
     }
   };
 
+  // Re-run the AI on the selection with a chosen model (bonus: "re-run with different settings").
+  const rebuild = async (model: "auto" | "cheap" | "strong", photos: boolean) => {
+    setBusy(true);
+    try {
+      const r = await postJson<{ requeued: number }>("/api/products/actions", { action: "retry", ids: [...selected], model, photos });
+      toast.success(`Rebuilding ${r.requeued} product${r.requeued === 1 ? "" : "s"}`, { description: "Published ones are taken off the storefront until you approve them again." });
+      setSelected(new Set());
+      refresh();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <PageBody>
       <PageHeader
@@ -171,6 +186,21 @@ export function ProductsView() {
               {busy && <Loader2 className="animate-spin" aria-hidden />}
               Approve and publish
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="rounded-full" disabled={busy}>
+                  <RotateCcw aria-hidden />
+                  Rebuild
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" side="top">
+                <DropdownMenuLabel>Rebuild with</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => rebuild("auto", false)}>Automatic model choice</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => rebuild("cheap", false)}>Fast model (Haiku)</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => rebuild("strong", false)}>Thorough model (Sonnet)</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => rebuild("strong", true)}>Thorough model + photos</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button size="sm" variant="ghost" className="rounded-full" onClick={() => setSelected(new Set())}>
               Clear
             </Button>
