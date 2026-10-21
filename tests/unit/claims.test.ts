@@ -30,6 +30,25 @@ describe("findTerms", () => {
     );
   });
 
+  // Phrasings real models cited in the first gateway run; the verifier used to drop all of them.
+  it.each([
+    ["Veganes Sojawachs, Baumwolldocht.", "vegan"],
+    ["Bleifreie Glasur.", "lead-free"],
+    ["Fair-Trade-zertifiziert.", "fair trade"],
+    ["FSC-zertifizierte Eiche, mit lebensmittelechtem Öl behandelt.", "food-safe"],
+    ["Machine wash 30 °C, do not tumble dry.", "machine-washable"],
+    ["Handgefertigte Vase aus Portugal.", "handmade"],
+    ["Bougie végane.", "vegan"],
+    ["Handcrafted from natural rattan.", "handmade"],
+  ])("recognises inflected and alternate wording: %s", (text, term) => {
+    expect(findTerms(text)).toContainEqual({ term, negated: false });
+  });
+
+  it("still requires the whole phrase (no partial-word matches)", () => {
+    expect(findTerms("Organically shaped bowl")).toEqual([]);
+    expect(findTerms("biography")).toEqual([]);
+  });
+
   it("does not let a negation leak across a clause boundary", () => {
     expect(findTerms("Not glazed. Frost-proof to -20 °C")).toEqual([{ term: "frost-proof", negated: false }]);
   });

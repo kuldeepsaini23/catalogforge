@@ -15,16 +15,16 @@ export const CLAIM_TERMS: Record<string, string[]> = {
   "oven-safe": ["oven-safe", "oven safe", "ofenfest", "backofengeeignet", "va au four", "passe au four"],
   "food-safe": ["food-safe", "food safe", "lebensmittelecht", "lebensmittelsicher", "contact alimentaire"],
   organic: ["organic", "bio", "öko", "oko", "biologique", "kbA"],
-  handmade: ["handmade", "hand-made", "hand made", "handgemacht", "handgefertigt", "fait main", "fait à la main"],
+  handmade: ["handmade", "hand-made", "hand made", "handcrafted", "hand-crafted", "handgemacht", "handgefertigt", "handgearbeitet", "fait main", "fait à la main", "artisanal"],
   "hand-finished": ["hand-finished", "hand finished", "von hand veredelt", "handveredelt", "fini à la main"],
   "hand-painted": ["hand-painted", "hand painted", "handbemalt", "peint à la main"],
   recycled: ["recycled", "recycelt", "recyceltem", "recyclé"],
   vegan: ["vegan", "végan", "végane"],
-  "fair trade": ["fair trade", "fairtrade", "fair gehandelt", "commerce équitable"],
+  "fair trade": ["fair trade", "fair-trade", "fairtrade", "fair gehandelt", "commerce équitable"],
   "uv-resistant": ["uv-resistant", "uv resistant", "uv-beständig", "uv-bestandig", "résistant aux uv"],
   "non-toxic": ["non-toxic", "non toxic", "ungiftig", "non toxique"],
   "lead-free": ["lead-free", "lead free", "bleifrei", "sans plomb"],
-  "machine-washable": ["machine-washable", "machine washable", "maschinenwaschbar", "lavable en machine"],
+  "machine-washable": ["machine-washable", "machine washable", "machine wash", "maschinenwaschbar", "maschinenwäsche", "in der maschine waschbar", "lavable en machine", "lavage en machine", "laver en machine"],
   hypoallergenic: ["hypoallergenic", "hypoallergen", "hypoallergénique"],
   "fsc-certified": ["fsc"],
 };
@@ -40,10 +40,14 @@ export function normalizeForMatch(s: string): string {
     .trim();
 }
 
+const INFLECTION = "(?:e|er|es|en|em|n|s)?";
+
 const TERM_PATTERNS = Object.fromEntries(
   Object.entries(CLAIM_TERMS).map(([term, phrasings]) => [
     term,
-    phrasings.map((p) => new RegExp(`(^|[^a-z0-9])${escapeRe(normalizeForMatch(p))}(?=$|[^a-z0-9])`, "g")),
+    // Optional ending so inflected German/French forms count ("veganes", "bleifreie",
+    // "lebensmittelechtem", "véganes"); the phrase itself must still be whole.
+    phrasings.map((p) => new RegExp(`(^|[^a-z0-9])${escapeRe(normalizeForMatch(p))}${INFLECTION}(?=$|[^a-z0-9])`, "g")),
   ]),
 ) as Record<string, RegExp[]>;
 
