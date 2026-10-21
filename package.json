@@ -15,7 +15,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file=.env src/lib/db/migrate.ts",
     "fixtures": "tsx fixtures/generate.ts",
-    "check": "bun run typecheck && bun run lint && bun run test"
+    "check": "bun run typecheck && bun run lint && bun run test",
+    "scale-run": "tsx scripts/scale-run.ts",
+    "load": "k6 run load/storefront.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",

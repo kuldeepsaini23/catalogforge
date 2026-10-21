@@ -22,13 +22,16 @@ export function routeProduct(input: ProductInput): RouteDecision {
     (n, r) => n + Object.values(r.cells).reduce((m, v) => m + v.length, 0),
     0,
   );
-  const hasDescription = input.rows.some((r) => Object.keys(r.cells).some((k) => /desc|beschreib|body/i.test(k)));
-  const thinText = textLength < 80;
+  // Longest supplier description; under ~40 characters there is too little to write copy from.
+  const descriptionChars = Math.max(
+    0,
+    ...input.rows.flatMap((r) => Object.entries(r.cells).filter(([k]) => /desc|beschreib|body/i.test(k)).map(([, v]) => v.length)),
+  );
 
   if (mixedLanguages) reasons.push("mixed languages");
   if (conflicts) reasons.push("conflicting rows");
   if (textLength > LONG_FREE_TEXT * Math.max(1, input.rows.length)) reasons.push("long free text");
-  const needsPhotos = input.photos.length > 0 && (!hasDescription || thinText);
+  const needsPhotos = input.photos.length > 0 && descriptionChars < 40;
   if (needsPhotos) reasons.push("description missing — use photos");
 
   // German/French alone is fine for the cheap model; it only escalates combined with other mess.
