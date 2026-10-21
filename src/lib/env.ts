@@ -16,6 +16,14 @@ const schema = z
     AI_GATEWAY_BASE_URL: z.string().url().default("https://ai-gateway.vercel.sh"),
     AI_MODEL_CHEAP: z.string().default("claude-haiku-4-5"),
     AI_MODEL_STRONG: z.string().default("claude-sonnet-4-5"),
+    // Optional cap on AI spend over the last 24 h; imports pause (with a reason) once it is reached.
+    AI_DAILY_BUDGET_USD: z
+      .string()
+      .optional()
+      .transform((v) => (v ? Number(v) : undefined))
+      .pipe(z.number().positive().optional()),
+    // Dashboard + API password (HTTP Basic, any user name). Required in production.
+    ADMIN_PASSWORD: z.string().optional(),
     AI_BATCH_THRESHOLD: z.coerce.number().int().nonnegative().default(100),
     AI_USE_BATCH: bool.transform((v) => v ?? true),
     AI_PRODUCTS_PER_CALL_CHEAP: z.coerce.number().int().min(1).max(25).default(8),

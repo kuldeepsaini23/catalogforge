@@ -25,7 +25,12 @@ export async function handleWebhook(data: JobData[typeof QUEUES.webhook]): Promi
   });
   const headers: Record<string, string> = { "Content-Type": "application/json", "User-Agent": "CatalogForge-Webhook/1" };
   const secret = env().IMPORT_WEBHOOK_SECRET;
-  if (secret) headers["X-CatalogForge-Signature"] = `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
+  // Signed over "<timestamp>.<body>" so a captured delivery can't be replayed later; receivers
+  // should reject old timestamps, dedupe on the delivery id and compare with timingSafeEqual.
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  headers["X-CatalogForge-Timestamp"] = timestamp;
+  headers["X-CatalogForge-Delivery"] = `${data.importId}:${data.event}`;
+  if (secret) headers["X-CatalogForge-Signature"] = `sha256=${createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex")}`;
   const res = await fetch(url, { method: "POST", headers, body, signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`Webhook ${url} answered ${res.status}`);
 }

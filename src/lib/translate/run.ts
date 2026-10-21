@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { withRetry, RateLimitedError, InvalidOutputError, TRUNCATED } from "@/lib/ai/errors";
 import { getProvider } from "@/lib/ai/provider";
 import { translationResponseSchema } from "@/lib/ai/schema";
+import { sanitizeOutputHtml } from "@/lib/cleaning/html";
 import { sha256 } from "@/lib/cleaning/text";
 import { getDb, schema } from "@/lib/db/client";
 import { env } from "@/lib/env";
@@ -205,8 +206,10 @@ async function translateGroup(
       const text = byId.get(item.id);
       const problems = text === undefined ? ["missing from response"] : verifyTranslation(item.text, text, item.keep);
       if (problems.length === 0) {
-        await saveTranslation(item, locale, text!, "machine");
-        await getDb().insert(schema.translationCache).values({ hash: cacheKey(locale, item.text), locale, text: text! }).onConflictDoNothing();
+        // Same allowlist as the English copy: the guards compare tags, the sanitizer strips attributes.
+        const clean = item.field === "descriptionHtml" ? sanitizeOutputHtml(text!) : text!;
+        await saveTranslation(item, locale, clean, "machine");
+        await getDb().insert(schema.translationCache).values({ hash: cacheKey(locale, item.text), locale, text: clean }).onConflictDoNothing();
       } else {
         hints[item.id] = problems.join("; ");
         failed.push(item);

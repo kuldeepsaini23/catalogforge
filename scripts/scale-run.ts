@@ -12,8 +12,11 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const K6_DURATION = process.env.K6_DURATION ?? "150s";
 
+// The dashboard API needs ADMIN_PASSWORD (HTTP Basic) when the server has one set.
+const AUTH: Record<string, string> = process.env.ADMIN_PASSWORD ? { Authorization: `Basic ${Buffer.from(`admin:${process.env.ADMIN_PASSWORD}`).toString("base64")}` } : {};
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, init);
+  const res = await fetch(`${BASE}${path}`, { ...init, headers: { ...AUTH, ...(init?.headers as Record<string, string> | undefined) } });
   const body = await res.json();
   if (!res.ok) throw new Error(`${path}: ${res.status} ${JSON.stringify(body)}`);
   return body as T;

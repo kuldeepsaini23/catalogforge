@@ -1,3 +1,4 @@
+import { unzipSync } from "fflate";
 import * as XLSX from "xlsx";
 import { normalizeWhitespace } from "@/lib/cleaning/text";
 
@@ -38,17 +39,39 @@ function sniffDelimiter(text: string): string {
  * Parses CSV or XLSX into string cells. Values stay as the supplier wrote them ("1.299,00 €" is not
  * coerced to a number), and blank rows are kept so sheet row numbers stay accurate.
  */
+/** An XLSX is a ZIP of XML; refuse one that would expand past this before parsing it. */
+const MAX_XLSX_EXPANDED_BYTES = 400 * 1024 * 1024;
+
+function checkXlsxExpansion(bytes: Uint8Array, fileName: string): void {
+  if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) return; // legacy .xls (not a ZIP)
+  let total = 0;
+  try {
+    unzipSync(bytes, {
+      filter: (f) => {
+        total += f.originalSize;
+        return false;
+      },
+    });
+  } catch {
+    throw new SheetError(`Could not read ${fileName}: the file is corrupt`);
+  }
+  if (total > MAX_XLSX_EXPANDED_BYTES) throw new SheetError(`${fileName} expands to ${Math.round(total / 1024 / 1024)} MB of data; the limit is ${MAX_XLSX_EXPANDED_BYTES / 1024 / 1024} MB`);
+}
+
 export function parseSheet(bytes: Uint8Array, fileName: string): ParsedSheet {
   const isCsv = /\.(csv|tsv|txt)$/i.test(fileName);
   let wb: XLSX.WorkBook;
   try {
     if (isCsv) {
       const text = decodeCsv(bytes);
-      wb = XLSX.read(text, { type: "string", raw: true, FS: sniffDelimiter(text), dense: true });
+      // sheetRows: stop parsing just past the limit (header + MAX_ROWS + 1 shows it was exceeded).
+      wb = XLSX.read(text, { type: "string", raw: true, FS: sniffDelimiter(text), dense: true, sheetRows: MAX_ROWS + 2 });
     } else {
-      wb = XLSX.read(bytes, { type: "array", dense: true, cellDates: false });
+      checkXlsxExpansion(bytes, fileName);
+      wb = XLSX.read(bytes, { type: "array", dense: true, cellDates: false, sheetRows: MAX_ROWS + 2 });
     }
   } catch (err) {
+    if (err instanceof SheetError) throw err;
     throw new SheetError(`Could not read ${fileName}: ${(err as Error).message}`);
   }
   const sheetName = wb.SheetNames[0];
@@ -72,7 +95,7 @@ export function parseSheet(bytes: Uint8Array, fileName: string): ParsedSheet {
   });
   const dataRows = matrix.slice(1);
   if (dataRows.length > MAX_ROWS) {
-    throw new SheetError(`The sheet has ${dataRows.length.toLocaleString("en")} rows; the limit is ${MAX_ROWS.toLocaleString("en")}`);
+    throw new SheetError(`The sheet has more than ${MAX_ROWS.toLocaleString("en")} rows, which is the limit`);
   }
   if (dataRows.length === 0) throw new SheetError("The sheet has a header row but no data rows");
   const rows = dataRows.map((cells) => {

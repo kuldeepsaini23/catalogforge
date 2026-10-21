@@ -1,6 +1,6 @@
 import { connection, NextResponse } from "next/server";
 import { handleError } from "@/lib/api";
-import { createImport, UploadError, type UploadFile } from "@/lib/imports";
+import { createImport, LIMITS, UploadError, type UploadFile } from "@/lib/imports";
 import { listImports } from "@/lib/queries";
 
 async function toUpload(v: FormDataEntryValue): Promise<UploadFile | null> {
@@ -11,6 +11,9 @@ async function toUpload(v: FormDataEntryValue): Promise<UploadFile | null> {
 /** Upload returns immediately (202); parsing, cleaning and AI work run in the background queue. */
 export async function POST(request: Request) {
   try {
+    // Refuse oversized bodies before buffering them.
+    const length = Number(request.headers.get("content-length") ?? 0);
+    if (length > LIMITS.requestBytes) throw new UploadError(`The upload is larger than ${Math.round(LIMITS.requestBytes / 1024 / 1024)} MB`, 413);
     const form = await request.formData().catch(() => {
       throw new UploadError("Send the files as multipart/form-data");
     });

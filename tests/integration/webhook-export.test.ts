@@ -7,7 +7,7 @@ import { decimalPrice, exportShopifyCsv } from "@/lib/export";
 import { createImport } from "@/lib/imports";
 import { resetDatabase, waitFor, waitForImport } from "./helpers";
 
-const received: Array<{ body: string; signature: string | undefined }> = [];
+const received: Array<{ body: string; signature: string | undefined; timestamp: string | undefined }> = [];
 let server: Server;
 let stop: () => Promise<void>;
 
@@ -16,7 +16,7 @@ beforeAll(async () => {
     let body = "";
     req.on("data", (c) => (body += c));
     req.on("end", () => {
-      received.push({ body, signature: req.headers["x-catalogforge-signature"] as string | undefined });
+      received.push({ body, signature: req.headers["x-catalogforge-signature"] as string | undefined, timestamp: req.headers["x-catalogforge-timestamp"] as string | undefined });
       // First delivery fails: proves the queue retries it.
       res.statusCode = received.length === 1 ? 500 : 204;
       res.end();
@@ -44,7 +44,8 @@ describe("import webhook and Shopify export", () => {
     const payload = JSON.parse(last.body);
     expect(payload).toMatchObject({ event: "import.completed", import: { id, totalRows: 60 }, rows: { total: 60 } });
     expect(payload.rows.done + payload.rows.needsReview + payload.rows.failed).toBe(60);
-    expect(last.signature).toBe(`sha256=${createHmac("sha256", "s3cret").update(last.body).digest("hex")}`);
+    expect(Math.abs(Number(last.timestamp) - Date.now() / 1000)).toBeLessThan(300);
+    expect(last.signature).toBe(`sha256=${createHmac("sha256", "s3cret").update(`${last.timestamp}.${last.body}`).digest("hex")}`);
   });
 
   it("exports Shopify's product CSV: one row per variant, product fields on the first row", async () => {

@@ -45,10 +45,19 @@ async function ingestPhotos(importId: string, photoPaths: string[]): Promise<voi
   for (const p of photoPaths) {
     const data = new Uint8Array(await readFile(resolveStoragePath(p)));
     if (/\.zip$/i.test(p)) {
-      const files = unzipSync(data, {
-        filter: (f) => PHOTO_EXTENSIONS.test(f.name) && !f.name.startsWith("__MACOSX/") && !/(^|\/)\./.test(f.name),
+      // Inflate one entry at a time so memory stays at one photo, not the whole archive.
+      const names: string[] = [];
+      unzipSync(data, {
+        filter: (f) => {
+          if (PHOTO_EXTENSIONS.test(f.name) && !f.name.startsWith("__MACOSX/") && !/(^|\/)\./.test(f.name)) names.push(f.name);
+          return false;
+        },
       });
-      for (const [name, bytes] of Object.entries(files)) await add(name, bytes);
+      if (names.length > MAX_PHOTOS) throw new SheetError(`${names.length} photos uploaded; the limit is ${MAX_PHOTOS}`);
+      for (const name of names) {
+        const entry = unzipSync(data, { filter: (f) => f.name === name })[name];
+        if (entry) await add(name, entry);
+      }
     } else {
       await add(path.basename(p), data);
     }

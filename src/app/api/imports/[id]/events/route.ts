@@ -4,6 +4,7 @@ import { importDetail, rowStrip } from "@/lib/queries";
 
 const ACTIVE = new Set(["queued", "parsing", "building", "paused"]);
 const encoder = new TextEncoder();
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Server-Sent Events: pushes the import's status, per-row strip and reconciliation once a second
@@ -12,6 +13,7 @@ const encoder = new TextEncoder();
 export async function GET(req: Request, ctx: RouteContext<"/api/imports/[id]/events">) {
   await connection();
   const { id } = await ctx.params;
+  if (!UUID.test(id)) return Response.json({ error: "Import not found" }, { status: 404 });
   let timer: ReturnType<typeof setTimeout> | undefined;
   let lastPayload = "";
   const stream = new ReadableStream<Uint8Array>({
@@ -36,7 +38,8 @@ export async function GET(req: Request, ctx: RouteContext<"/api/imports/[id]/eve
           }
           timer = setTimeout(push, 1000);
         } catch (err) {
-          controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: (err as Error).message })}\n\n`));
+          console.error(err);
+          controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: "Live updates stopped; reload the page" })}\n\n`));
           controller.close();
         }
       };

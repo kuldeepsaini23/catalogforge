@@ -24,6 +24,7 @@ CatalogForge cleans supplier data before any AI sees it, asks the model only for
 - [Cost strategy](#cost-strategy)
 - [Tech stack and design decisions](#tech-stack-and-design-decisions)
 - [Technical write-up](#technical-write-up)
+- [Security](#security)
 - [Limitations](#limitations)
 - [Project layout](#project-layout)
 
@@ -243,7 +244,7 @@ The remaining misses: short rows whose language is genuinely ambiguous (detected
 
 **Decisions worth calling out**
 - **The model doesn't write prices.** It is never asked for anything code can compute. That removes a whole class of hallucination and halves output tokens.
-- **Single merchant.** Multi-store and auth were out of scope for two days (see Limitations).
+- **Single merchant, one admin password.** The dashboard and API sit behind `ADMIN_PASSWORD`; multi-store and per-user accounts were out of scope (see Limitations).
 - **Approve = publish a snapshot.** The storefront never reads the working tables, so a half-built import, an edit in progress or a failed rebuild can't leak to shoppers.
 - **Send back = unpublish and rebuild with the merchant's note in the prompt.** Edited fields are kept.
 - **Row numbers are spreadsheet row numbers** (header = row 1), so "row 14" means row 14 in Excel.
@@ -282,6 +283,28 @@ I worked with Claude Code (Claude Opus) as a pair programmer. It wrote most of t
 
 ---
 
+## Security
+
+An audit of the whole repo (uploads, rendering, AI output, API, secrets, dependencies) led to these protections:
+
+| Risk | Protection |
+|---|---|
+| Anyone could call the paid AI routes, approve or delete products, export the catalog | `src/proxy.ts`: dashboard + API need `ADMIN_PASSWORD` (HTTP Basic, constant-time compare); the server refuses to run without one in production. Storefront and photos stay public. |
+| Runaway AI spend (abuse or a bug) | `AI_DAILY_BUDGET_USD`: imports pause with a visible reason once 24 h spend reaches it |
+| Cross-site requests from another tab (CSRF) | Non-GET requests must be same-origin (`Sec-Fetch-Site` / `Origin`) |
+| ZIP bombs, huge uploads | Per-photo and total *uncompressed* size limits read from the ZIP directory before inflating; ZIP entries are inflated one at a time; request size checked from `Content-Length`; ZIPs without photos are refused |
+| XLSX decompression bombs | Expanded size checked before parsing; parsing stops just past the 10,000-row limit |
+| Script/CSS injection via AI or supplier HTML | English **and translated** copy pass the same allowlist sanitizer (no attributes, no URLs); titles/attributes render as text |
+| Prompt injection in supplier cells | Data is delimited and the prompt says to ignore instructions in it; the only tool is a forced, side-effect-free `submit_products`; output is schema-validated and every claim must quote its source cell |
+| Path traversal / zip-slip | Uploaded and zipped names are reduced to a safe basename; storage paths are resolved and prefix-checked; photos are served by database id |
+| CSV formula injection in exports | Cells starting with `= + - @ tab CR` are neutralised |
+| Clickjacking, MIME sniffing | `X-Frame-Options: DENY`, CSP `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy` |
+| Webhook replay | HMAC-SHA256 over `timestamp.body`, with `X-CatalogForge-Timestamp` and a delivery id |
+| Secrets | Keys only from env (`ANTHROPIC_API_KEY` or `AI_GATEWAY_API_KEY`), never logged, never in client bundles; `.env` is git-ignored and absent from history |
+| SQL injection | Drizzle parameters throughout; sort columns are allowlisted; LIKE input is escaped |
+
+Not done: a full `script-src` CSP (needs per-request nonces), per-IP rate limiting (the spend cap bounds the damage), and per-user accounts.
+
 ## Limitations
 
 - Real Claude runs were not possible while building (no API key in the environment). The Anthropic provider is implemented, typed and request-shaped per the SDK docs, but **all numbers here come from the deterministic mock**, which estimates tokens from characters. The mock deliberately injects ~7 % hallucinations and supports fault and rate-limit injection.
@@ -289,7 +312,7 @@ I worked with Claude Code (Claude Opus) as a pair programmer. It wrote most of t
 - `bun run serve` runs 4 web processes on one machine. Beyond that you'd run several hosts behind a CDN; the LISTEN/NOTIFY invalidation already works across hosts that share the database.
 - Translations run synchronously even in batch-mode imports; moving them to the Batches API would cut about a fifth of total spend.
 - Products re-built after publishing stay live with their last approved snapshot until re-approved (by design), and the dashboard shows them as "Live on storefront" next to their new status.
-- Single merchant, no auth. Translations cover title + description (tags/attributes stay English). No Sharp resizing: photos over 3.75 MB aren't sent to the vision model. Volume units (ml, l) aren't normalised.
+- Single merchant with one shared admin password (no user accounts or roles). Translations cover title + description (tags/attributes stay English). No Sharp resizing: photos over 3.75 MB aren't sent to the vision model. Volume units (ml, l) aren't normalised.
 - `EDGE-CASES.md` was written after the pipeline, not as the first commit (see its note).
 
 ---

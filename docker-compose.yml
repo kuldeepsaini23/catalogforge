@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: catalogforge
       POSTGRES_DB: catalogforge
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
