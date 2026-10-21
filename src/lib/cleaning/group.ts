@@ -47,9 +47,10 @@ class UnionFind {
 }
 
 /** Strips trailing variant segments ("-RED", "-L", "_30CM", "-TER") from a SKU. */
-export function baseSku(sku: string, colour?: string, size?: string): string {
+export function baseSku(sku: string, colour?: string | Array<string | undefined>, size?: string): string {
   const tokens = sku.toUpperCase().split(/[-_/.\s]+/).filter(Boolean);
-  const colourKey = colour ? compactKey(colour) : "";
+  // Both the normalised colour ("Beige") and the supplier's wording ("sand") can be encoded in a SKU.
+  const colourKeys = (Array.isArray(colour) ? colour : [colour]).filter((c): c is string => Boolean(c)).map(compactKey);
   const sizeKey = size ? compactKey(size) : "";
   while (tokens.length > 1) {
     const t = tokens[tokens.length - 1];
@@ -57,12 +58,18 @@ export function baseSku(sku: string, colour?: string, size?: string): string {
     const isVariantToken =
       (isSizeToken(t) && !/^\d+$/.test(t)) ||
       isColourToken(t) ||
-      (colourKey && (k === colourKey || isAbbreviation(k, colourKey))) ||
-      (sizeKey && (k === sizeKey || k === sizeKey.replace(/cm$/, "")));
+      colourKeys.some((ck) => k === ck || isAbbreviation(k, ck)) ||
+      (sizeKey && (k === sizeKey || (k.length >= 2 && sizeKey.startsWith(k)) || sameDigits(k, sizeKey)));
     if (!isVariantToken) break;
     tokens.pop();
   }
   return tokens.join("-");
+}
+
+/** "50X50C" ↔ "50 x 50 cm", "15L" ↔ "1.5 l": same digit sequence, digits present. */
+function sameDigits(token: string, size: string): boolean {
+  const d = token.replace(/\D/g, "");
+  return d.length > 0 && d === size.replace(/\D/g, "");
 }
 
 /** "TER" → terracotta, "BLK" → black: same first letter, letters appear in order. */
@@ -90,7 +97,7 @@ export function titleKey(row: CleanRow): string {
 function primaryKey(row: CleanRow): string {
   if (row.parentSku) return `P:${compactKey(row.parentSku.value)}`;
   if (row.handle) return `H:${slugify(row.handle.value)}`;
-  if (row.sku) return `P:${compactKey(baseSku(row.sku.value, row.colour?.value, row.size?.value))}`;
+  if (row.sku) return `P:${compactKey(baseSku(row.sku.value, [row.colour?.value, row.colour?.raw], row.size?.value))}`;
   return `T:${titleKey(row)}`;
 }
 
@@ -117,6 +124,22 @@ export function groupRows(rows: CleanRow[]): GroupResult {
       if (prev === undefined) bySku.set(sk, i);
       else uf.union(prev, i);
     }
+  });
+
+  // Sibling SKUs: "BOWL-2072-SAN" joins "BOWL-2072-WHI" when both share a numbered prefix and differ
+  // only in a short alphabetic suffix (a colour/finish code the colour list did not recognise).
+  const byPrefix = new Map<string, number>();
+  usable.forEach((row, i) => {
+    if (!row.sku || row.parentSku || row.handle) return;
+    const tokens = row.sku.value.split(/[-_/.\s]+/).filter(Boolean);
+    if (tokens.length < 3) return;
+    const last = tokens[tokens.length - 1];
+    const prefix = tokens.slice(0, -1).join("-");
+    if (!/^[A-Z]{2,4}$/i.test(last) || !/\d/.test(prefix)) return;
+    const pk = compactKey(baseSku(prefix, [row.colour?.value, row.colour?.raw], row.size?.value));
+    const prev = byPrefix.get(pk) ?? byKey.get(`P:${pk}`);
+    if (prev === undefined) byPrefix.set(pk, i);
+    else uf.union(prev, i);
   });
 
   // Title-only rows (no SKU/parent/handle) join a keyed group with the same title, if unambiguous.
@@ -285,9 +308,12 @@ function detectDuplicates(groups: ProductGroup[]): void {
   }
 }
 
+const MAX_DUPLICATE_FLAGS = 3;
+
 function flag(a: ProductGroup, b: ProductGroup, why: string): void {
   a.possibleDuplicates.push(b.key);
   b.possibleDuplicates.push(a.key);
+  if (a.possibleDuplicates.length > MAX_DUPLICATE_FLAGS || b.possibleDuplicates.length > MAX_DUPLICATE_FLAGS) return;
   const msg = (other: ProductGroup) =>
     `Possible duplicate of product with rows ${other.rows.map((r) => r.row).slice(0, 5).join(", ")} (${why})`;
   a.issues.push({ row: a.rows[0].row, code: "possible_duplicate", message: msg(b), blocking: true });
