@@ -167,7 +167,12 @@ export function groupRows(rows: CleanRow[]): GroupResult {
     members.get(root)!.push(row);
   });
 
-  const groups = [...members.values()].map(buildGroup);
+  // Currencies stated explicitly anywhere in the sheet: if there is more than one, a bare number's
+  // currency cannot be inferred from the sheet default.
+  const sheetCurrencies = new Set(
+    usable.filter((r) => r.price && !r.corrections.some((c) => c.kind === "currency_inferred")).map((r) => r.price!.value.currency),
+  );
+  const groups = [...members.values()].map((m) => buildGroup(m, sheetCurrencies));
   // Ensure keys are unique even if two unrelated groups produced the same key.
   const seen = new Map<string, number>();
   for (const g of groups) {
@@ -180,7 +185,7 @@ export function groupRows(rows: CleanRow[]): GroupResult {
   return { groups, orphanRows };
 }
 
-function buildGroup(rows: CleanRow[]): ProductGroup {
+function buildGroup(rows: CleanRow[], sheetCurrencies: Set<string> = new Set()): ProductGroup {
   rows.sort((a, b) => a.row - b.row);
   // Group key = the most common primary key among member rows (ties → lexicographically smallest).
   const keyCounts = new Map<string, number>();
@@ -254,6 +259,30 @@ function buildGroup(rows: CleanRow[]): ProductGroup {
         to: `duplicate of row ${first.row}`,
       });
     }
+  }
+
+  // A bare number ("12.50") took the sheet's default currency. If this product's other rows state a
+  // single explicit currency, that is the better evidence: use it and record the correction.
+  const inferredRows = new Set(rows.filter((r) => r.corrections.some((c) => c.kind === "currency_inferred")).map((r) => r.row));
+  const explicit = new Set(rows.filter((r) => r.price && !inferredRows.has(r.row)).map((r) => r.price!.value.currency));
+  if (explicit.size === 1 && inferredRows.size) {
+    const productCurrency = [...explicit][0];
+    for (const v of variants.values()) {
+      if (v.currency && v.currency !== productCurrency && v.rows.some((n) => inferredRows.has(n))) {
+        corrections.push({ row: v.rows[0], column: "Price", kind: "currency_inferred", from: v.currency, to: `${productCurrency} (stated on this product's other rows)` });
+        v.currency = productCurrency;
+      }
+    }
+  }
+
+  if (explicit.size === 0 && inferredRows.size && sheetCurrencies.size > 1) {
+    issues.push({
+      row: [...inferredRows][0],
+      column: "Price",
+      code: "unknown_currency",
+      message: `No currency stated for this product and the sheet mixes ${[...sheetCurrencies].sort().join(", ")}; please confirm the currency`,
+      blocking: true,
+    });
   }
 
   // A missing price on a row is resolved if a duplicate row for the same SKU supplied one.

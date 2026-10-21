@@ -19,6 +19,7 @@ export const COLOURS: Record<string, string[]> = {
   yellow: ["gelb", "jaune"],
   mustard: ["senf", "senfgelb", "moutarde"],
   gold: ["golden", "doré", "gülden"],
+  amber: ["bernstein", "ambre", "honey"],
   green: ["grün", "gruen", "vert", "verte"],
   olive: ["oliv", "olivgrün", "olive green"],
   sage: ["salbei", "sauge", "sage green"],

@@ -166,9 +166,25 @@ const TYPOS: Record<string, string> = { terracotta: "terracota", black: "blakc",
 
 const mojibake = (s: string) => Buffer.from(s, "utf8").toString("latin1");
 
+/** Ground truth for one generated row (null for the deliberately empty rows). */
+export interface RowTruth {
+  family: string;
+  sku: string;
+  /** null when the sheet's price is missing; undefined when the row is a conflicting duplicate. */
+  priceCents: number | null | undefined;
+  currency: string;
+  grams: number;
+  colour: string;
+  size: string;
+  language: "en" | "de" | "fr";
+  /** True for the fuzzy-duplicate product (same title, different supplier code). */
+  fuzzyDuplicate: boolean;
+}
+
 export interface Generated {
   headers: string[];
   rows: Row[];
+  truth: Array<RowTruth | null>;
   photos: Array<{ name: string; bytes: Uint8Array }>;
   families: number;
 }
@@ -179,6 +195,7 @@ export function generate(totalRows: number, seed = 42, opts: { photos?: number }
   const chance = (p: number) => rand() < p;
 
   const families: Row[][] = [];
+  const truthOf = new Map<Row, RowTruth>();
   const photoNames: string[] = [];
   let produced = 0;
   let familyNo = 0;
@@ -243,19 +260,37 @@ export function generate(totalRows: number, seed = 42, opts: { photos?: number }
         if (brokenEncoding) {
           for (const k of ["Product Name", "Description", "Notes", "Care", "Colour"]) row[k] = mojibake(row[k]);
         }
-        if (chance(0.02)) row.Price = pick(["", "", "auf Anfrage", "TBD"]);
+        const missingPrice = chance(0.02);
+        if (missingPrice) row.Price = pick(["", "", "auf Anfrage", "TBD"]);
+        truthOf.set(row, {
+          family: base, sku: `${base}-${colourCode}${sizes.length > 1 ? `-${sizeCode}` : ""}`, priceCents: missingPrice ? null : priceCents,
+          currency, grams: s.grams, colour: c, size: s.label, language: lang as RowTruth["language"], fuzzyDuplicate: false,
+        });
         rows.push(row);
       }
     }
     // Exact duplicates and conflicting duplicates of a variant row.
-    if (chance(0.04)) rows.push({ ...rows[0] });
-    if (chance(0.015)) rows.push({ ...rows[0], Price: formatPrice(t.basePriceCents + 500, currency, "en", rand) });
+    if (chance(0.04)) {
+      const copy = { ...rows[0] };
+      truthOf.set(copy, truthOf.get(rows[0])!);
+      rows.push(copy);
+    }
+    if (chance(0.015)) {
+      const conflict = { ...rows[0], Price: formatPrice(t.basePriceCents + 500, currency, "en", rand) };
+      truthOf.set(conflict, { ...truthOf.get(rows[0])!, priceCents: undefined });
+      rows.push(conflict);
+    }
     families.push(rows);
     produced += rows.length;
     photoNames.push(photoNameFor(base, rows[0].Artikelnummer, name, rand));
     // A fuzzy duplicate product: same title, different supplier code.
     if (chance(0.01)) {
-      const dupe = rows.slice(0, 1).map((r) => ({ ...r, Artikelnummer: r.Artikelnummer.replace(base, `${t.code}X-${2000 + familyNo}`), "Parent SKU": "" }));
+      const dupe = rows.slice(0, 1).map((r) => {
+        const d = { ...r, Artikelnummer: r.Artikelnummer.replace(base, `${t.code}X-${2000 + familyNo}`), "Parent SKU": "" };
+        const tr = truthOf.get(r)!;
+        truthOf.set(d, { ...tr, family: `${t.code}X-${2000 + familyNo}`, sku: tr.sku.replace(base, `${t.code}X-${2000 + familyNo}`), fuzzyDuplicate: true });
+        return d;
+      });
       families.push(dupe);
       produced += dupe.length;
     }
@@ -277,7 +312,8 @@ export function generate(totalRows: number, seed = 42, opts: { photos?: number }
 
   const photoLimit = Math.min(opts.photos ?? 2000, photoNames.length);
   const photos = photoNames.slice(0, photoLimit).map((name, i) => ({ name, bytes: solidPng(i) }));
-  return { headers: HEADERS, rows, photos, families: familyNo };
+  const truth = rows.map((r) => truthOf.get(r) ?? null);
+  return { headers: HEADERS, rows, truth, photos, families: familyNo };
 }
 
 function formatPrice(cents: number, currency: string, lang: string, rand: () => number): string {
