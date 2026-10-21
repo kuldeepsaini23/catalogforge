@@ -59,6 +59,21 @@ Open **http://localhost:3000**. Sample sheets and photo ZIPs to upload are in [`
 | `bun run eval` | Accuracy of the cleaner against a labelled 2 × 10,000-row test set |
 | `bun run scale-run` | 5k seed import → publish → 10k import while k6 hammers the storefront → `load/results/` |
 
+### Deploying on Vercel
+
+The same code runs serverless on Vercel (`vercel.json`); self-hosted (`bun run up`, or the `Dockerfile`) is unchanged.
+
+1. Import the repo in Vercel. Add **Neon Postgres** from the Marketplace (sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED`) and create a **private Blob store** (sets `BLOB_READ_WRITE_TOKEN`).
+2. Set `AI_PROVIDER=anthropic`, `AI_GATEWAY_API_KEY` (or `ANTHROPIC_API_KEY`), `ADMIN_PASSWORD`, `CRON_SECRET` (any long random string), and optionally `AI_DAILY_BUDGET_USD=5`, `DB_POOL_MAX=5`, `WORKER_CONCURRENCY=4`.
+3. Deploy. The build applies migrations over the direct connection, then builds.
+
+What changes on Vercel:
+- **Uploads** go from the browser straight to Blob (`/api/uploads` issues a token scoped to `uploads/`), so sheets and ZIPs aren't limited by the 4.5 MB function body. Photos inside a ZIP are read in place, not copied out one by one.
+- **The worker** is `/api/worker`: it runs the same pg-boss handlers for up to 270 s, then calls itself again while jobs remain. A lease row keeps it to one at a time. It's started by uploads, product actions and an open import page, and by a daily cron as a backstop. A drain that dies mid-job loses nothing: pg-boss retries the job and the next drain picks it up.
+- **Postgres**: queries use Neon's pooled URL; migrations and the storefront's `LISTEN` use the unpooled one.
+
+Imports on Vercel are slower than the self-hosted numbers below (short gaps between drains, a smaller connection pool), and the storefront latency figures were measured self-hosted.
+
 ---
 
 ## Architecture
@@ -362,7 +377,7 @@ Not done: a full `script-src` CSP (needs per-request nonces), per-IP rate limiti
 
 ## Limitations
 
-- Real Claude runs were not possible while building (no API key in the environment). The Anthropic provider is implemented, typed and request-shaped per the SDK docs, but **all numbers here come from the deterministic mock**, which estimates tokens from characters. The mock deliberately injects ~7 % hallucinations and supports fault and rate-limit injection.
+- Real-model numbers come from the 200-row labelled sample (see [Measured results](#measured-results)); the scale and 10k numbers come from the deterministic mock, which estimates tokens from characters, deliberately injects ~7 % hallucinations and supports fault and rate-limit injection.
 - The accuracy eval scores the **cleaner** against a synthetic labelled set I generated myself; real supplier files will be messier in different ways. The real-model runs cover 200 labelled rows, not 10,000; the 10k numbers use the mock. The claim checker only knows a fixed vocabulary of claim terms, so a claim outside it ("BPA-free", "award-winning") reaches review only through the model's own confidence or a human.
 - `bun run serve` runs 4 web processes on one machine. Beyond that you'd run several hosts behind a CDN; the LISTEN/NOTIFY invalidation already works across hosts that share the database.
 - Translations run synchronously even in batch-mode imports; moving them to the Batches API would cut about a fifth of total spend.
