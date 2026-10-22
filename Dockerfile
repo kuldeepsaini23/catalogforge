@@ -1,6 +1,6 @@
 # One image runs both the web server and the worker: the web process stores uploads and the
 # worker reads them, so they share a volume mounted at STORAGE_DIR (/data).
-FROM node:22-bookworm-slim
+FROM node:22.23.4-bookworm-slim
 
 RUN npm install -g bun@1.3.11
 WORKDIR /app
